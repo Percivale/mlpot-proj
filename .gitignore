@@ -1,3 +1,13 @@
+#LAMMPS files
+*.lammpstrj
+*.xyz
+*.data
+*.AlO
+*.txt
+*.dat
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
