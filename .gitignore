@@ -3,7 +3,7 @@
 *.xyz
 *.data
 *.AlO
-*.txt
+#*.txt
 *.dat
 
 
