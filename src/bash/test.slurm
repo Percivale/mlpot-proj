@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --partition=short
-#SBATCH --account=kajahh
+#SBATCH --account=share-nv-+
 #SBATCH --time=00:15:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
