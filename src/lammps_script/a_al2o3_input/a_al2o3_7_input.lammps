@@ -10,11 +10,11 @@ neigh_modify delay 1 #check yes one 1000 page 2000
 
 
 #SYS DEF
-region box block 0 25 0 25 0 25
+region box block 0 35 0 35 0 35
 create_box 2 box
 
-create_atoms 1 random 200 8 box
-create_atoms 2 random 300 9 box
+create_atoms 1 random 2000 8 box #Al
+create_atoms 2 random 3000 9 box #O
 
 mass 1 26.9815
 mass 2 15.9994
@@ -25,7 +25,7 @@ set atom 2 charge -0.9450
 pair_style born/coul/long 10.0
 pair_coeff 1 1 0.00294848 0.068 1.5704 0.14561856 1
 pair_coeff 1 2 0.00745792 0.172 2.6067 0.35836056 1
-pair_coeff 2 2 0.01196736 0.276 3.643 	 0.88190881 1
+pair_coeff 2 2 0.01196736 0.276 3.6430 0.88190881 1
 
 kspace_style pppm 1.0e-4
 
@@ -46,9 +46,9 @@ timestep 0.001 #picoseconds
 velocity all create 5000 8
 
 fix 1 all nvt temp 5000 5000 0.1
-fix 2 all deform 1 x final 0 17.8022 y final 0 17.8022 z final 0 17.8022 units box
-thermo 50
-thermo_style custom step cpu temp press ke pe etotal vol
+fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
+thermo 100
+thermo_style custom step temp press density ke pe etotal vol
 thermo_modify lost ignore
 run 500000
 
@@ -59,7 +59,7 @@ run 20000 #100K/ps cooling
 
 unfix 1
 fix 1 all nvt temp 3000 3000 0.1
-fix 2 all deform 1 x final 0 17.8022 y final 0 17.8022 z final 0 17.8022 units box
+fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
 run 50000
 
 unfix 1
@@ -74,7 +74,6 @@ run 27000
 
 unfix 1
 fix 1 all nvt temp 300 300 0.1
-thermo_style custom step temp density cpu
 run 100000
 
 #restart file

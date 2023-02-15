@@ -1,15 +1,15 @@
 #!/bin/sh
-#SBATCH --partition=short
-#SBATCH --account=share-nv-fys
-#SBATCH --time=2:00:00
+#SBATCH --time=4:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --mem=1G
-#SBATCH --job-name="test1"
+#SBATCH --mem=2000
+#SBATCH --job-name="lammps-test"
 #SBATCH --output=test1_output.log
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=hiorthk1@aalto.fi
 
-WORKDIR=${SLURM_SUBMIT_DIR}
-cd ${WORKDIR}
+
+cp -R mlpot-proj/src/lammps_script/a_al2o3_input $WRKDIR
+cd $WRKDIR
 
 module purge
 
@@ -32,11 +32,18 @@ cd ../..
 #add installed lammps to the executable search path
 export PATH = $PATH:$PWD/lammps-mpi-23Jun2022/bin
 
+cd $WRKDIR/a_al2o3_input
 
-module load git/2.21.0
-git clone "repo_name"
+lmp -in a_al2o3_0_input.lammps
 
-cd git_repo/
-#do stuff
+mv *.lammpstrj $HOME
+mv *.log $HOME
 
-git push origin main #can I do this?
+
+#for f in ./*input.lammps
+#	do 
+#		lmp -in f
+#	done 
+
+#compress .lammpstrj files with tar
+#transfer to $HOME
