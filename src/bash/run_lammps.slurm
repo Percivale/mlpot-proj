@@ -28,6 +28,7 @@ make install
 
 cd ../..
 
+export PATH=$PATH:$PWD/lammps-mpi-23Jun2022/bin
 cd $WRKDIR/a_al2o3_input
 
 srun lmp -in a_al2o3_0_input.lammps
