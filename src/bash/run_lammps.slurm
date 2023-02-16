@@ -39,6 +39,8 @@ srun lmp -in a_al2o3_0_input.lammps
 mv *.lammpstrj $HOME
 mv *.log $HOME
 
+cd $WRKDIR
+rm -r *
 
 #for f in ./*input.lammps
 #	do 
