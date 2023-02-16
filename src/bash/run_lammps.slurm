@@ -26,12 +26,8 @@ cmake ../cmake -D PKG_KSPACE=yes -D PKG_MPIIO=yes -D CMAKE_INSTALL_PREFIX=../../
 cmake --build .
 make install
 
-
 cd ../..
 
-#add installed lammps to the executable search path
-export PATH=$PATH:$PWD/lammps-mpi-23Jun2022/bin
-echo "info configuration" |srun lmp
 cd $WRKDIR/a_al2o3_input
 
 srun lmp -in a_al2o3_0_input.lammps
