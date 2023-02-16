@@ -8,7 +8,7 @@
 #SBATCH --mail-user=kaja.hiorth@aalto.fi
 
 
-cp -R mlpot-proj/src/lammps_script/a_al2o3_input $WRKDIR
+cp -R $HOME/mlpot-proj/src/lammps_script/a_al2o3_input $WRKDIR
 cd $WRKDIR
 
 module purge
