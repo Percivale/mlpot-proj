@@ -4,9 +4,6 @@
 #SBATCH --mem=4000
 #SBATCH --job-name="lammps-test"
 #SBATCH --output=test1_output.log
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=kaja.hiorth@aalto.fi
-
 
 cp -R $HOME/mlpot-proj/src/lammps_script/a_al2o3_input $WRKDIR
 cd $WRKDIR
