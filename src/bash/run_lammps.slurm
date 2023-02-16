@@ -23,7 +23,7 @@ module load cmake gcc/8.4.0 openmpi/4.0.5
 
 #build lammps:
 cmake ../cmake -D PKG_KSPACE=yes -D PKG_MPIIO=yes -D CMAKE_INSTALL_PREFIX=../../lammps-mpi-23Jun2022
-make -j 2
+cmake --build .
 make install
 
 
