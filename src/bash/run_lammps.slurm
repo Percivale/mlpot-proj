@@ -34,11 +34,13 @@ export PATH=$PATH:$PWD/lammps-mpi-23Jun2022/bin
 echo "info configuration" |srun lmp
 cd $WRKDIR/a_al2o3_input
 
-lmp -in a_al2o3_0_input.lammps
+srun lmp -in a_al2o3_0_input.lammps
 
 mv *.lammpstrj $HOME
 mv *.log $HOME
 
+cd $WRKDIR
+rm -r *
 
 #for f in ./*input.lammps
 #	do 
