@@ -1,5 +1,4 @@
 #LAMMPS files
-*.lammpstrj
 *.xyz
 *.data
 *.AlO
