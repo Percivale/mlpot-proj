@@ -1,6 +1,6 @@
 #!/bin/sh
-#SBATCH --time=6:00:00
-#SBATCH --nodes=2
+#SBATCH --time=12:00:00
+#SBATCH --nodes=3
 #SBATCH --mem=4000
 #SBATCH --job-name="lammps-test"
 #SBATCH --output=test1_output.log
