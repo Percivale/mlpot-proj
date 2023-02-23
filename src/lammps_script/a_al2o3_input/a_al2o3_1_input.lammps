@@ -1,6 +1,5 @@
 #INIT: cooling rate 100K/ps
 
-
 units metal
 dimension 3
 atom_style charge #atomic
@@ -22,18 +21,19 @@ set atom 1 charge 1.4175
 set atom 2 charge -0.9450
 
 #potential config
-pair_style born/coul/long 10.0
-pair_coeff 1 1 0.00294848 0.068 1.5704 0.14561856 1
-pair_coeff 1 2 0.00745792 0.172 2.6067 0.35836056 1
-pair_coeff 2 2 0.01196736 0.276 3.6430 0.88190881 1
+pair_style born/coul/long 22.0 13.0
+pair_coeff 1 1 0.00294848 0.068 1.5704 14.561856 0.0
+pair_coeff 1 2 0.00745792 0.172 2.6067 35.836056 0.0
+pair_coeff 2 2 0.01196736 0.276 3.6430 88.190881 0.0
 
-kspace_style pppm 1.0e-4
+kspace_style pppm 1.0e-6
 
 
 #SIMULATION
-dump dmp all atom 5000 a_al2o3_1_dump.lammpstrj
-
-
+dump dmp all atom 1000 a_al2o3_1_dump.lammpstrj id type x y z fx fy fz #vx vy vz?
+thermo 1000
+thermo_style custom step temp press density ke pe etotal
+thermo_modify lost ignore
 
 #RUN
 #minimize energy so there is no overlap
@@ -42,35 +42,30 @@ minimize 1.0e-4 1.0e-6 10000 100000
 
 
 #heating
-timestep 0.001 #picoseconds
+timestep 0.001 #picoseconds, 1fs
 velocity all create 5000 2
-
 fix 1 all nvt temp 5000 5000 0.1
 fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
-thermo 100
-thermo_style custom step temp press density ke pe etotal vol
-thermo_modify lost ignore
-run 500000
+run 10000
 
 unfix 2
 unfix 1
 fix 1 all nvt temp 5000 3000 0.1
-run 20000 #100K/ps cooling
+run 20000
 
 unfix 1
 fix 1 all nvt temp 3000 3000 0.1
 fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
-run 50000
+run 10000
 
 unfix 1
 unfix 2
 fix 1 all nvt temp 3000 3000 0.1
-run 50000
+run 20000
 
 unfix 1
 fix 1 all nvt temp 3000 300 0.1
-run 27000
-
+run 270000 #270 ps
 
 unfix 1
 fix 1 all nvt temp 300 300 0.1
