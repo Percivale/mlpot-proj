@@ -1,6 +1,6 @@
 import numpy as np
 
-def read_dump(path: str, n_atoms: int):
+def read_dump(path: str):
     """
     :param path: path to dump file
     :param n_atoms: number of atoms in simulation
@@ -9,21 +9,24 @@ def read_dump(path: str, n_atoms: int):
     # Maybe make the below line general, and take usecols as a function argument??
     xyz = np.genfromtxt(path, dtype=float, comments="ITEM", usecols=[2, 3, 4],
                         invalid_raise=False, skip_header=9)
-    print("TEST")
-    print(xyz.shape)
-    print(xyz[0:3])
-    xyz = np.reshape(xyz, (-1, 5000, 3))
-    print(xyz[0, 0:3, :])
-    print(xyz.shape)
+    print(xyz[0])
+
+    idx_type = np.genfromtxt(path, dtype=int, comments="ITEM", usecols=[0, 1],
+                        invalid_raise=False, skip_header=9)
+
+    print(xyz.shape, xyz[0, 0, :])
+    print(idx_type.shape, idx_type[0, 0, :])
+
+    boxsize = np.genfromtxt(path, dtype=float, comments="ITEM", skip_header=3, max_rows=3)
+    n_atoms = np.loadtxt(path, dtype=int, comments="ITEM", skiprows=3, max_rows=1)[0]
+
+    xyz = np.reshape(xyz, (-1, n_atoms, 3))
+    idx_type = np.reshape(idx_type, (-1, n_atoms, 2))
 
     # TO DO:
-    # get box size
-    # get n_atoms
-    # rescale xyz ?
-    # get index and names data
-    # get forces and velocities?
+    # get forces and energies??
 
-    return xyz
+    return xyz, idx_type, boxsize, n_atoms
 
 
 def format_files():
@@ -36,7 +39,13 @@ def format_files():
 
 def test():
     path = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_0_dump.lammpstrj"
-    read_dump(path, 5000)
+    xyz, idx_type, boxsize, n_atoms = read_dump(path)
+
+    print("TEST")
+    print(xyz.shape, xyz[0, 0, :])
+    print(idx_type.shape, idx_type[0, 0, :])
+    print(boxsize)
+    print(n_atoms)
 
 
 test()
