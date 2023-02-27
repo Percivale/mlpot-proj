@@ -9,7 +9,7 @@ neigh_modify delay 1 #check yes one 1000 page 2000
 
 
 #SYS DEF
-region box block 0 35 0 35 0 35
+region box block 0 40 0 40 0 40
 create_box 2 box
 
 create_atoms 1 random 2000 7 box #Al
@@ -21,7 +21,7 @@ set atom 1 charge 1.4175
 set atom 2 charge -0.9450
 
 #potential config
-pair_style born/coul/long 22.0 13.0
+pair_style born/coul/long 16.0
 pair_coeff 1 1 0.00294848 0.068 1.5704 14.561856 0.0
 pair_coeff 1 2 0.00745792 0.172 2.6067 35.836056 0.0
 pair_coeff 2 2 0.01196736 0.276 3.6430 88.190881 0.0
@@ -30,7 +30,8 @@ kspace_style pppm 1.0e-6
 
 
 #SIMULATION
-dump dmp all atom 1000 a_al2o3_6_dump.lammpstrj id type x y z fx fy fz #vx vy vz?
+dump dmp all atom 1000 a_al2o3_6_dump.lammpstrj
+dump f all custom 1000 a_al2o3_6.* id type x y z fx fy fz
 thermo 1000
 thermo_style custom step temp press density ke pe etotal
 thermo_modify lost ignore
@@ -45,7 +46,7 @@ minimize 1.0e-4 1.0e-6 10000 100000
 timestep 0.001 #picoseconds, 1fs
 velocity all create 5000 7
 fix 1 all nvt temp 5000 5000 0.1
-fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
+fix 2 all deform 1 x final 0 38.8789 y final 0 38.8789 z final 0 38.8789 units box
 run 10000
 
 unfix 2
@@ -55,7 +56,7 @@ run 20000
 
 unfix 1
 fix 1 all nvt temp 3000 3000 0.1
-fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
+fix 2 all deform 1 x final 0 38.8789 y final 0 38.8789 z final 0 38.8789 units box
 run 10000
 
 unfix 1
@@ -65,9 +66,11 @@ run 20000
 
 unfix 1
 fix 1 all nvt temp 3000 300 0.1
+fix 2 all deform 1 x final 0 31.91 y final 31.91 z final 31.91 units box
 run 270000 #270 ps
 
 unfix 1
+unfix 2
 fix 1 all nvt temp 300 300 0.1
 run 100000
 
