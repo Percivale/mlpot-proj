@@ -1,10 +1,11 @@
 #!/bin/sh
-#SBATCH --time=12:00:00
+#SBATCH --time=8:00:00
 #SBATCH --nodes=3
 #SBATCH --mem=4000
-#SBATCH --job-name="lammps-test"
-#SBATCH --output=test1_output.log
+#SBATCH --job-name="alo1"
+#SBATCH --output=alo1_output.log
 
+cd
 cp -R $HOME/mlpot-proj/src/lammps_script/a_al2o3_input $WRKDIR
 cd $WRKDIR
 
