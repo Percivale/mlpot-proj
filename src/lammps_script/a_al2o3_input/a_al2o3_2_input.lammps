@@ -57,7 +57,7 @@ run 20000 #100K/ps cooling
 
 unfix 1
 fix 1 all nvt temp 3000 3000 0.1
-fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units boxfix 2 all deform 1 x final 0 38.8789 y final 0 38.8789 z final 0 38.8789 units box
+fix 2 all deform 1 x final 0 38.8789 y final 0 38.8789 z final 0 38.8789 units box
 run 10000
 
 unfix 1
@@ -67,10 +67,12 @@ run 10000
 
 unfix 1
 fix 1 all nvt temp 3000 300 0.1
+fix 2 all deform 1 x final 0 31.91 y final 0 31.91 z final 0 31.91 units box
 run 270000
 
 
 unfix 1
+unfix 2
 fix 1 all nvt temp 300 300 0.1
 run 100000
 
