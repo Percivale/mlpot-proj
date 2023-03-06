@@ -2,8 +2,8 @@
 #SBATCH --time=8:00:00
 #SBATCH --nodes=3
 #SBATCH --mem=4000
-#SBATCH --job-name="alo1"
-#SBATCH --output=alo1_output.log
+#SBATCH --job-name="alo_test2"
+#SBATCH --output=alo_test2_output.log
 
 cd
 cp -R $HOME/mlpot-proj/src/lammps_script/a_al2o3_input $WRKDIR
@@ -31,8 +31,7 @@ cd $WRKDIR/a_al2o3_input
 
 srun lmp -in a_al2o3_0_input.lammps
 
-mv *.lammpstrj $HOME
-mv *.log $HOME
+mv a_al2o3_0* $HOME
 
 cd $WRKDIR
 rm -r *
