@@ -16,6 +16,9 @@ mass 2 15.9994
 set atom 1 charge 1.4175 
 set atom 2 charge -0.9450
 
+group Al id 1
+velocity Al set -1 0 0
+
 #potential config
 pair_style born/coul/long 10.0
 pair_coeff 1 1 0.00294848 0.068 1.5704 14.561856 0.0
@@ -27,12 +30,11 @@ kspace_style pppm 1.0e-4
 #sim settings
 thermo 100
 thermo_style custom step ke pe etotal
-dump f all custom 100 forces.* id type fx fy fz
+dump f all custom 100 forces.dump id type fx fy fz
 dump dmp all atom 100 two_atoms.lammpstrj
 
 #run
 timestep 0.001
-velocity 1 set -0.01 0 0
+fix 1 all nvt temp 300 300 1
 run 50000
-
-
+unfix 1

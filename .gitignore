@@ -2,6 +2,23 @@
 *.xyz
 *.data
 *.AlO
+*.lammpstrj
+*.rdf
+*.gz
+*.dump
+*.npy
+a_al2o3_*
+*.lammps
+*.adf
+*.rdf
+*.zip
+doc/
+src/data
+src/lammps_script
+src/msd
+src/.idea
+*.gif
+src/python/deepmd_data
 #*.txt
 *.dat
 
