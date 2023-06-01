@@ -12,7 +12,8 @@ a_al2o3_*
 *.adf
 *.rdf
 *.zip
-doc/
+*.pdf
+*.pptx
 src/data
 src/lammps_script
 src/msd
