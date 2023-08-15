@@ -72,13 +72,22 @@ In the figure below the repulsive term has been added to the potential. The AlAl
 ![img](doc/plots/matsui_close.png)
 
 
-When the system has turned liquid, the material is cooled down to achieve the amorphous structure. If the system was cooled down slow enough it would have time to rearrange itself into the crystal. The faster the cooling is, the more unordered the structure should end up as. 
+When the system has turned liquid, the material is cooled down to achieve the amorphous structure. If the system was cooled down slow enough it would have time to rearrange itself into the crystal. The faster the cooling is, the more unordered the structure should end up as. It is very important that the structure does indeed melt before it is cooled down again. This can be verified by measuring the MSD averaged over time for different temperatures. For a gas or liquid the MSD will be increasing over time, while for a solid it will be zero as the structure is just vibrating so the deviations average out to zero. The melting point of Al2O3 is 2345K, and as Figure [] below shows, the structure is clearly in the liquid phase. 
+
+![img](doc/plots/msd_a_al2o3_1.png)
 
 Radial distribution functions (RDF) from the simulations will show whether the quenching successfully produced amorphous structures as they can be compared with experimental data. The plot below shows the RDF of a structure cooled at a rate 10K/ps. The cooling rates 100K/ps and 200K/ps were also examined but they matched so the cooling rates did not seem to affect the structure in any noticeable way. 
 
 ![img](doc/plots/rdf_10Kps.png)
 
--,,- around melting point....
+The angular distribution functions serve a similar purpose as the RDF. These plots have not been normalized, and the y axis shows the count of sites with the same angle. Both the ADFs and RDFs have been samples at 300K. 
+
+![img](doc/plots/oalo_adf.png)
+![img](doc/plots/aloal_adf.png)
+![img](doc/plots/ooo_adf.png)
+![img](doc/plots/alalal_adf.png)
+
+
 
 # Neural Networks
 The hope is that the machine learning models can be used to decrease the computational requirements for molecular dynamics simulations. 
@@ -90,8 +99,9 @@ The machine learning models will only be trained on amorphous alumina oxide, whi
 
 # References
 <a id="1">[1]</a> 
-Dijkstra, E. W. (1968). 
-Go to statement considered harmful. 
-Communications of the ACM, 11(3), 147-148.
+Han Wang, Linfeng Zhang, Jiequn Han, and Weinan E. "DeePMD-kit: A deep learning package for many-body potential energy representation and molecular dynamics." Computer Physics Communications 228 (2018): 178-184. doi:10.1016/j.cpc.2018.03.016
+
+<a id="2">[2]</a> 
+Jinzhe Zeng, Duo Zhang, Denghui Lu, Pinghui Mo, Zeyu Li, Yixiao Chen, Marián Rynik, Li'ang Huang, Ziyao Li, Shaochen Shi, Yingze Wang, Haotian Ye, Ping Tuo, Jiabin Yang, Ye Ding, Yifan Li, Davide Tisi, Qiyu Zeng, Han Bao, Yu Xia, Jiameng Huang, Koki Muraoka, Yibo Wang, Junhan Chang, Fengbo Yuan, Sigbjørn Løland Bore, Chun Cai, Yinnian Lin, Bo Wang, Jiayan Xu, Jia-Xin Zhu, Chenxing Luo, Yuzhi Zhang, Rhys E. A. Goodall, Wenshuo Liang, Anurag Kumar Singh, Sikai Yao, Jingchao Zhang, Renata Wentzcovitch, Jiequn Han, Jie Liu, Weile Jia, Darrin M. York, Weinan E, Roberto Car, Linfeng Zhang, Han Wang. "DeePMD-kit v2: A software package for deep potential models." J. Chem. Phys. 159 (2023): 054801. doi:10.1063/5.0155600
 
 
