@@ -1,0 +1,112 @@
+{
+  "_comment": " model parameters",
+  "model": {
+    "type_map": [
+      "Al",
+      "O"
+    ],
+    "descriptor": {
+      "type": "se_e2_a",
+      "sel": [
+        60,
+        92
+      ],
+      "rcut_smth": 0.50,
+      "rcut": 6.00,
+      "neuron": [
+        5,
+        10,
+        20
+      ],
+      "resnet_dt": false,
+      "axis_neuron": 16,
+      "seed": 1,
+      "_comment": " that's all"
+    },
+    "fitting_net": {
+      "neuron": [
+        30,
+        30,
+        30
+      ],
+      "resnet_dt": true,
+      "seed": 1,
+      "_comment": " that's all"
+    },
+    "_comment": " that's all"
+  },
+
+  "learning_rate": {
+    "type": "exp",
+    "decay_steps": 5000,
+    "start_lr": 0.001,
+    "stop_lr": 3.51e-8,
+    "_comment": "that's all"
+  },
+
+  "loss": {
+    "type": "ener",
+    "start_pref_e": 0.02,
+    "limit_pref_e": 1,
+    "start_pref_f": 1000,
+    "limit_pref_f": 1000,
+    "start_pref_v": 0,
+    "limit_pref_v": 0,
+    "_comment": " keep force prefs const"
+  },
+
+  "training": {
+    "training_data": {
+      "systems": [
+        "../../deepmd_data/data_set/al2o3_1/",
+        "../../deepmd_data/data_set/al2o3_2/",
+        "../../deepmd_data/data_set/al2o3_3/",
+	"../../deepmd_data/data_set/al2o3_12/",
+	"../../deepmd_data/data_set/al2o3_13/",
+	"../../deepmd_data/data_set/al2o3_14/",
+	"../../deepmd_data/data_set/al2o3_23/",
+	"../../deepmd_data/data_set/al2o3_24/",
+	"../../deepmd_data/data_set/al2o3_25/",
+	"../../deepmd_data/data_set/al2o3_34/",
+	"../../deepmd_data/data_set/al2o3_35/",
+	"../../deepmd_data/data_set/al2o3_36/",
+	"../../deepmd_data/data_set/al2o3_45/",
+	"../../deepmd_data/data_set/al2o3_46/",
+	"../../deepmd_data/data_set/al2o3_47/",
+	"../../deepmd_data/data_set/al2o3_56/",
+	"../../deepmd_data/data_set/al2o3_57/",
+	"../../deepmd_data/data_set/al2o3_58"
+      ],
+      "batch_size": "auto",
+      "_comment": "that's all"
+    },
+    "validation_data": {
+      "systems": [
+        "../../deepmd_data/data_set/al2o3_4/",
+	"../../deepmd_data/data_set/al2o3_5/",
+	"../../deepmd_data/data_set/al2o3_15/",
+	"../../deepmd_data/data_set/al2o3_16/",
+	"../../deepmd_data/data_set/al2o3_26/",
+	"../../deepmd_data/data_set/al2o3_27/",
+	"../../deepmd_data/data_set/al2o3_37/",
+	"../../deepmd_data/data_set/al2o3_38/",
+	"../../deepmd_data/data_set/al2o3_48/",
+	"../../deepmd_data/data_set/al2o3_49/",
+	"../../deepmd_data/data_set/al2o3_59/",
+	"../../deepmd_data/data_set/al2o3_60"
+
+      ],
+      "batch_size": "auto",
+      "numb_btch": 1,
+      "_comment": "that's all"
+    },
+    "numb_steps": 100000,
+    "seed": 10,
+    "disp_file": "lcurve.out",
+    "disp_freq": 100,
+    "save_freq": 1000,
+    "_comment": "that's all"
+  },
+
+  "_comment": "that's all"
+}

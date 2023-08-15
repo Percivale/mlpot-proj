@@ -486,22 +486,30 @@ def get_angles(dr, name_array, cutoffs, bz=1):
 
 def test_angles2():
     #f100 = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump"
-    f100 = "../lammps/output/a_al2o3_1.dump"
-    f10 = "../lammps/output/a_al2o3_23.dump"
-    f200 = "../lammps/output/a_al2o3_55.dump"
-    dr100, name_array100 = get_dump(f100)
-    dr10, name_array10 = get_dump(f10)
-    dr200, name_array200 = get_dump(f200)
-
+    #f100 = "../lammps/output/a_al2o3_1.dump"
+    #f10 = "../lammps/output/a_al2o3_23.dump"
+    #f200 = "../lammps/output/a_al2o3_55.dump"
+    #dr100, name_array100 = get_dump(f100)
+    #dr10, name_array10 = get_dump(f10)
+    #dr200, name_array200 = get_dump(f200)
+    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump")
     cutoffs = [4, 2.5, 3.4]
     frame = -1
 
-    alalal100, aloal100, oalo100, ooo100, angle_ticks = get_angles(dr100[:, frame], name_array100[:, frame], cutoffs, bz=5)
-    alalal10, aloal10, oalo10, ooo10, angle_ticks = get_angles(dr10[:, frame], name_array10[:, frame], cutoffs, bz=5)
-    alalal200, aloal200, oalo200, ooo200, angle_ticks = get_angles(dr200[:, frame], name_array200[:, frame], cutoffs, bz=5)
+    #alalal100, aloal100, oalo100, ooo100, angle_ticks = get_angles(dr100[:, frame], name_array100[:, frame], cutoffs, bz=5)
+    #alalal10, aloal10, oalo10, ooo10, angle_ticks = get_angles(dr10[:, frame], name_array10[:, frame], cutoffs, bz=5)
+    #alalal200, aloal200, oalo200, ooo200, angle_ticks = get_angles(dr200[:, frame], name_array200[:, frame], cutoffs, bz=5)
+    alalal, aloal, oalo, ooo, angle_ticks = get_angles(dr[:, frame], name_array[:, frame], cutoffs, bz=5)
 
+    plt.figure()
+    plt.title("adf, nn pot")
+    plt.plot(angle_ticks, alalal, "-o", label="AlAlAl")
+    plt.plot(angle_ticks, aloal, "-d", label="AlOAl")
+    plt.plot(angle_ticks, ooo, "-s", label="OOO")
+    plt.legend()
+    plt.show()
 
-
+    """
     plt.figure()
     plt.title("Al-Al-Al adf")
     plt.plot(angle_ticks, alalal100, "-o", label="100K/ps")
@@ -537,7 +545,7 @@ def test_angles2():
     plt.legend()
     plt.savefig("ooo_adf.png")
     #plt.show()
-
+    """
 #test_angles2()
 
 def test_angles():
@@ -566,7 +574,7 @@ def test_angles():
     plt.show()
 
 
-#test_angles()
+test_angles2()
 
 
 def plot_cm():

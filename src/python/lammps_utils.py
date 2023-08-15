@@ -27,7 +27,8 @@ class ConvertUnits:
         num = num * 1000 * self.mol / (self.Å ^ 3)
         return num
 
-
+CU = ConvertUnits()
+print(CU.kcal_mol_to_eV(762301))
 def test_CU():
     CU = ConvertUnits()
     print(CU.kcal_mol_to_eV(1))
@@ -128,6 +129,9 @@ def format_logdir(data_dir, dest_dir):
     frames100 = liquid_frames + melt_100Kps + solid_frames
     frames200 = liquid_frames + melt_200Kps + solid_frames
     frames10 = liquid_frames + melt_10Kps + solid_frames
+    frames100h = liquid_frames + list(np.arange(9, 32, 1, dtype=int)) + solid_frames
+    #frames200h = liquid_frames + list(np.arange(9, 20, 1, dtype=int)) + solid_frames
+    frames10h = liquid_frames + list(np.arange(9, 243, 1, dtype=int)) + solid_frames
     CU = ConvertUnits()
 
     for filename in os.listdir(data_dir):
@@ -138,9 +142,14 @@ def format_logdir(data_dir, dest_dir):
                 energies = data[frames10, 4]
             elif len(data) - 10 == len(frames100):
                 energies = data[frames100, 4]
+            elif len(data) - 10 == len(frames100h):
+                energies = data[frames100h, 4]
+            elif len(data) - 10 == len(frames10h):
+                energies = data[frames10h, 4]
+            #elif len(data) - 10 == len(frames200h):
+            #    energies = data[frames200h, 4]
             else:
                 energies = data[frames200, 4]
-
             filename_dir = "/" + filename[:-4] + "/set.000"
             os.makedirs(dest_dir + filename_dir, exist_ok=True)
             dest_path = os.path.join(dest_dir + filename_dir, "energy.npy")
@@ -209,7 +218,7 @@ def format_files(data_dir, dest_dir):
 
 #dest = "../deepmd_data/data_set"
 #data = "../deepmd_data/logs"
-#format_logdir(data_dir=".\\log_test", dest_dir=".\\log_test")
+format_logdir(data_dir=".\\log_test", dest_dir=".\\log_test")
 #format_logdir(data_dir=data, dest_dir=dest)
 
 
@@ -250,7 +259,20 @@ def get_adf(filename: str, cr: float):
     plt.legend()
     plt.show()
 
+def plot_model(path):
+    data = np.genfromtxt(path, names=True)
+    for name in data.dtype.names[1:-1]:
+        plt.plot(data['step'], data[name], label=name)
+    plt.legend()
+    plt.xlabel('Step')
+    plt.ylabel('Loss')
+    plt.xscale('symlog')
+    plt.yscale('log')
+    plt.grid()
+    plt.show()
 
+path = "deepmd_data/lcurve.out"
+plot_model(path)
 # get_adf(filename="C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_1.adf", cr=100)
 # get_adf(filename="C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_23.adf", cr=10)
 # get_adf(filename="C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_45.adf", cr=200)
