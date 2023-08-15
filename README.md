@@ -83,8 +83,11 @@ Radial distribution functions (RDF) from the simulations will show whether the q
 The angular distribution functions serve a similar purpose as the RDF. These plots have not been normalized, and the y axis shows the count of sites with the same angle. Both the ADFs and RDFs have been samples at 300K. 
 
 ![img](doc/plots/oalo_adf.png)
+
 ![img](doc/plots/aloal_adf.png)
+
 ![img](doc/plots/ooo_adf.png)
+
 ![img](doc/plots/alalal_adf.png)
 
 
