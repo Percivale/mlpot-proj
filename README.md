@@ -8,7 +8,7 @@
 # Table of Contents
 
 1. [The Matsui Potential](#the-matsui-potential)
-2. [My second title](#my-second-title)
+2. [Amorphous aluminium oxide](#amorphous-aluminium-oxide)
 
 
 # The Matsui Potential
@@ -80,7 +80,7 @@ Radial distribution functions (RDF) from the simulations will show whether the q
 
 ![img](doc/plots/rdf_10Kps.png)
 
-The angular distribution functions serve a similar purpose as the RDF. These plots have not been normalized, and the y axis shows the count of sites with the same angle. Both the ADFs and RDFs have been samples at 300K. 
+The angular distribution functions serve a similar purpose as the RDF. These plots have not been normalized, and the y-axis shows the count of sites with the same angle. Both the ADFs and RDFs have been sampled at 300K. These plots did not show any visible changes based on the cooling rate either. The radial and angular distribution functions seem to match those measured experimentally, see e.g.  [[3]](#3). 
 
 ![img](doc/plots/oalo_adf.png)
 
@@ -92,12 +92,14 @@ The angular distribution functions serve a similar purpose as the RDF. These plo
 
 
 
-# Neural Networks
+# A neural network potential
+The goal is to use a neural network to reproduce the amorphous alumina structures produced by the Matsui potential through the melt-and-quench technique. As the Matsui potential is relatively simple, only dependent on atom type and radial distances between two and two atoms, the neural network should be able to fit the data. The 
+
 The hope is that the machine learning models can be used to decrease the computational requirements for molecular dynamics simulations. 
 Downsides: 
 The machine learning models will only be trained on amorphous alumina oxide, which means that it will only be able to do predictions on these sorts of structures. 
 
-# DeepMD-kit
+## DeepMD-kit
 [DeepMD-kit](https://github.com/deepmodeling/deepmd-kit/tree/master) is a .....
 
 # References
@@ -107,4 +109,6 @@ Han Wang, Linfeng Zhang, Jiequn Han, and Weinan E. "DeePMD-kit: A deep learning 
 <a id="2">[2]</a> 
 Jinzhe Zeng, Duo Zhang, Denghui Lu, Pinghui Mo, Zeyu Li, Yixiao Chen, Marián Rynik, Li'ang Huang, Ziyao Li, Shaochen Shi, Yingze Wang, Haotian Ye, Ping Tuo, Jiabin Yang, Ye Ding, Yifan Li, Davide Tisi, Qiyu Zeng, Han Bao, Yu Xia, Jiameng Huang, Koki Muraoka, Yibo Wang, Junhan Chang, Fengbo Yuan, Sigbjørn Løland Bore, Chun Cai, Yinnian Lin, Bo Wang, Jiayan Xu, Jia-Xin Zhu, Chenxing Luo, Yuzhi Zhang, Rhys E. A. Goodall, Wenshuo Liang, Anurag Kumar Singh, Sikai Yao, Jingchao Zhang, Renata Wentzcovitch, Jiequn Han, Jie Liu, Weile Jia, Darrin M. York, Weinan E, Roberto Car, Linfeng Zhang, Han Wang. "DeePMD-kit v2: A software package for deep potential models." J. Chem. Phys. 159 (2023): 054801. doi:10.1063/5.0155600
 
+<a id="3">[3]</a>
+Shi, Caijuan, et al. "The structure of amorphous and deeply supercooled liquid alumina." Frontiers in Materials 6 (2019): 38. doi: 10.3389/fmats.2019.00038
 
