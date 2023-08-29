@@ -1,10 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import structure_analysis
+
+
 def make_top(n1:int, n2:int, q1:float, q2:float, n_atoms:int, sep:float):
     boxsize = np.round(n_atoms**(1/3)*sep+1)
     l = np.arange(0.5, boxsize, sep)
     xyz = np.vstack(np.meshgrid(l, l, l)).reshape(3,-1).T
+    np.random.shuffle(xyz)
 
     idx = np.arange(1, n_atoms+1, 1, dtype=int)
 
@@ -13,6 +17,7 @@ def make_top(n1:int, n2:int, q1:float, q2:float, n_atoms:int, sep:float):
 
     for i in range(n_atoms):
        print(idx[i], type[i], q[i], xyz[i, 0], xyz[i, 1], xyz[i, 2])
+
 
 
 def make_alo(n1:int, n2:int, q1:float, q2:float, a:float, c:float, angle=60):
@@ -86,7 +91,7 @@ def testalo():
     q2 = -0.9450
     make_alo(n1, n2, q1, q2, a, c)
 
-testalo()
+#testalo()
 
 
 def test():
@@ -98,7 +103,7 @@ def test():
     q2 = -0.9450
     make_top(n1, n2, q1, q2, n_atoms, sep)
 
-#test()
+
 def rep_pot():
     r = np.linspace(0.01, 1.0, 100)
     pot = 15/r**24
@@ -107,4 +112,21 @@ def rep_pot():
     for i in range(len(r)):
         print(i+1, r[i], pot[i], f[i])
 
+fname = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump"
+r, types_n = structure_analysis.get_dump(fname)
+print(types_n.shape)
 
+def from_xyz_make_top(r, types_n, q1, q2):
+    n_atoms = types_n.shape[0]
+    idx = np.arange(1, n_atoms + 1, 1, dtype=int)
+
+    q = np.full_like(types_n, fill_value=q1, dtype=float)
+    q[types_n == 2] = q2
+
+    with open('al2o3.top', 'w') as f:
+        for i in range(n_atoms):
+            f.write(str(idx[i]) + str(" ") + str(types_n[i, -1]) + str(" ") + str(q[i, -1]) + str(" ") + str(r[i, -1, 0]) + str(" ") + str(r[i, -1, 1]) + str(" ") + str(r[i, -1, 2]) + "\n")
+
+q1 = 1.4175
+q2 = -0.9450
+#from_xyz_make_top(r, types_n, q1, q2)

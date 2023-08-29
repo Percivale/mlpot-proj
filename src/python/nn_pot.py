@@ -1,12 +1,33 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+#import structure_analysis
+#import lammps_utils
 
-n_ATOMS = 4000
-filename = ""
 ###########################
-#data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=9, delimiter=" ",
-#                         names=["atom_nr", "type", "x", "y", "z", "vx", "vy", "vz", "fx", "fy", "fz", "pe"]).dropna()
+
+def weight_func(rc, rcs):
+    r1 = np.arange(0, rcs, 0.1)
+    r2 = np.arange(rcs, rc, 0.1)
+    return r1, 1/r1, r2, 1/r2*(0.5*np.cos(np.pi*(r2 - rcs)/(rc - rcs)) + 0.5)
+
+r_c = [6]
+r_cs = [0.5, 1, 1.5, 2, 2.5, 3, 3.5]
+
+plt.figure()
+for rc in r_c:
+    for rcs in r_cs:
+        r1, s1, r2, s2 = weight_func(rc, rcs)
+        r = np.concatenate((r1, r2))
+        s = np.concatenate((s1, s2))
+        plt.plot(r, s, label ="$r_{cs}$ = "+ str(rcs))
+plt.legend()
+plt.title("Weight function with different $r_{cs}$")
+plt.ylabel("weight")
+plt.xlabel("r [Å]")
+plt.xlim(1, 5.5)
+plt.ylim(0, 1)
+plt.show()
+
 q_Al = 1.4175
 a_Al = 0.7852
 b_Al = 0.034
@@ -28,12 +49,6 @@ def matsui_pot(r, coeff_1, coeff_2):
     vdw = coeff_1[3]*coeff_2[3]/r**6
 
     repulsion = f*(coeff_1[2] + coeff_2[2])*np.exp((coeff_1[1] + coeff_2[1] - r)/(coeff_1[2] + coeff_2[2]))
-    #plt.figure()
-    #plt.plot(r, coloumb, label="coloumb")
-    #plt.plot(r, -vdw, label="vdw")
-    #plt.plot(r, repulsion, label="repulsion")
-    #plt.legend()
-    #plt.show()
 
     return coloumb - vdw + repulsion
 
@@ -49,21 +64,23 @@ def plot_matsui(coeff_Al, coeff_O):
 
     plt.figure()
     plt.title("Matsui potential", size=16)
-    plt.plot(x_line, y_line, color="k", linestyle=":", linewidth=1.5)
+    #plt.plot(x_line, y_line, color="k", linestyle=":", linewidth=1.5)
     plt.plot(r, pot_AlAl, linewidth=2, color="teal", label="AlAl", alpha=0.8)
     plt.plot(r, pot_AlO, linewidth=2, color="darkblue", linestyle="--", label="AlO")
     plt.plot(r, pot_OO, linewidth=2, color="firebrick", linestyle="-.", label="OO")
-    plt.xlabel("Interatomic distance [Å]")
-    plt.ylabel("Energy [kJ/mol]")
-    plt.xlim(0.8, 6)
-    plt.ylim(-400, 600)
-    #plt.ylim(-0.2e9, 0.3e9)
-    plt.legend(frameon=False)
+    plt.xlabel("Interatomic distance [Å]", size=14)
+    plt.ylabel("Energy [kJ/mol]", size=14)
+    plt.xlim(0.01, 3)
+    #plt.ylim(-400, 600)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.ylim(-5e3, 2e4)
+    plt.legend(frameon=False, fontsize=16)
     plt.show()
 
     fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3, sharex=True, figsize=(12,6))
 
-    ax0.set_title("AlAl")
+    ax0.set_title("Al Al")
     ax0.plot(r, 15/r**24, "--", label="short-range repulsive term")
     ax0.plot(r, pot_AlAl, label="Matsui potential")
     ax0.set_xlim(0.1, 3.5)
@@ -71,13 +88,15 @@ def plot_matsui(coeff_Al, coeff_O):
     ax0.legend()
 
 
-    ax1.set_title("AlO")
+
+    ax1.set_title("Al O")
     ax1.plot(r, 15/r**24, "--")
     ax1.plot(r, pot_AlO)
     ax1.set_xlim(0.1, 4.0)
     ax1.set_ylim(-400, 600)
+    print("Minima: ", r[r>1][pot_AlO[r>1]==min(pot_AlO[r>1])])
 
-    ax2.set_title("OO")
+    ax2.set_title("O O")
     ax2.plot(r, 15/r**24, "--")
     ax2.plot(r, pot_OO)
     ax2.set_xlim(0.1, 4.0)
@@ -87,4 +106,90 @@ def plot_matsui(coeff_Al, coeff_O):
 
 
 plot_matsui(coeff_Al, coeff_O)
+
+
+
+
+fname = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\data.dump"
+r, types_n, f, e = structure_analysis.get_dump(fname, n_atoms=2, return_all=True)
+
+n_frames = r.shape[1]
+
+dist = np.sqrt(np.sum((r[0, :] - r[1, :])**2, axis=-1))
+CU = lammps_utils.ConvertUnits()
+print(dist[e[0]+e[1] == np.min(e[0, :]+e[1, :])])
+m_pot = CU.kcal_mol_to_eV(CU.kJ_to_kcal(matsui_pot(dist, coeff_Al, coeff_O)))
+print(min(m_pot[dist>1]))
+plt.figure()
+plt.title("NN pot and Matsui plot, Al-O")
+plt.plot(dist, (e[0, :]+e[1, :])/2 + (min(m_pot[dist>1]) - min((e[0]+e[1])[dist>1])/2), "-o", label="Pot_E avg")
+#plt.plot(dist, e[0], "-o", label="Pot_E, Al")
+#plt.plot(dist, e[1], "-o", label="Pot_E, O")
+plt.plot(dist, m_pot, label="Matsui")
+#plt.plot(np.full(len(dist), dist[e[0]+e[1] == np.min(e[0, :]+e[1, :])]), np.linspace(-30, 7, num=len(dist))) #line through minima
+plt.ylim(-5, 5)
+plt.xlim(0.8, 8)
+plt.ylabel("Energy [eV]")
+plt.xlabel("Distance [Å]")
+plt.grid()
+plt.legend()
+plt.show()
+
+def get_force(d, e):
+    force = np.zeros(len(d)-1)
+    print(d.shape)
+    for i in range(len(force)-1):
+        if d[i] - d[i-1] > 0:
+            force[i] = -(e[i+1] - e[i])/(d[i+1]-d[i])
+        else:
+            force[i] = force[i-1]
+    return force
+
+dist_m = np.arange(0.5, 8, 0.1)
+print(dist_m.shape)
+matsui_p = CU.kcal_mol_to_eV(CU.kJ_to_kcal(matsui_pot(dist_m, coeff_Al, coeff_O)))
+
+m_force = get_force(dist_m, matsui_p)
+
+plt.figure()
+plt.title("Force between Al and O")
+#plt.plot(dist, f[0, :, -1], "-o", label="Al")
+plt.plot(dist, 2*f[1, :, -1], "-o", label="O")
+plt.plot(dist_m[:-1], m_force, label="Matsui")
+#plt.plot(dist, CU.kcal_mol_to_eV(CU.kJ_to_kcal(matsui_pot(dist, coeff_Al, coeff_O))), label="Matsui")
+#plt.plot(np.full(len(dist), dist[e[0]+e[1] == np.min(e[0, :]+e[1, :])]), np.linspace(-30, 7, num=len(dist))) #line through minima
+plt.ylim(-5, 90)
+plt.xlim(0.5, 3.5)
+plt.ylabel("Force [eV/Å]")
+plt.xlabel("Distance [Å]")
+plt.grid()
+plt.legend()
+plt.show()
+
+def get_pot(dist, f):
+    pot = np.zeros(len(dist)-1)
+    for i in range(1, len(pot)):
+        pot[i] = pot[i-1] - 2*f[0, i-1, -1]*np.abs((dist[i]-dist[i-1]))
+
+    return pot
+
+
+
+pot = get_pot(dist, f)
+
+plt.figure()
+plt.title("Potential between Al and O")
+plt.plot(dist, m_pot, label="Matsui")
+plt.plot(dist[:-1], pot, label="NN Pot")
+#plt.plot(dist[:-1], -f[0, :-1, -1]*np.diff(dist), "-o", label="Al-O")
+#plt.plot(dist, f[1, :, -1]*dist, "-o", label="O")
+#plt.plot(dist, CU.kcal_mol_to_eV(CU.kJ_to_kcal(matsui_pot(dist, coeff_Al, coeff_O))), label="Matsui")
+#plt.plot(np.full(len(dist), dist[e[0]+e[1] == np.min(e[0, :]+e[1, :])]), np.linspace(-30, 7, num=len(dist))) #line through minima
+plt.ylim(-5, 5)
+plt.xlim(1, 8)
+plt.ylabel("Energy [eV]")
+plt.xlabel("Distance [Å]")
+plt.grid()
+plt.legend()
+plt.show()
 

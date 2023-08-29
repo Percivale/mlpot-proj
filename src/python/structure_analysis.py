@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import convert_units as cu
 
-
-def get_data(filename: str):
-    data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=9, delimiter=" ",
-                         names=["atom_nr", "type", "x", "y", "z"]).dropna()  # .reset_index(drop=True)
-
+def get_data(filename: str, skip_r=9):
+    data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=skip_r, delimiter=" ",
+                         names=["atom_nr", "type", "q", "x", "y", "z"]).dropna()  # .reset_index(drop=True)
     x = np.asarray(data["x"])
     y = np.asarray(data["y"])
     z = np.asarray(data["z"])
@@ -14,6 +13,8 @@ def get_data(filename: str):
     atom_idx = np.asarray(data["atom_nr"], dtype=int)
 
     n_frames = int(len(x) // 4000)
+    if n_frames == 0:
+        n_frames=1
     r = np.zeros((4000, n_frames, 3))
     types_n = np.zeros((4000, n_frames), dtype=int)
     atom_idx_n = np.zeros((4000, n_frames), dtype=int)
@@ -34,7 +35,7 @@ def get_data(filename: str):
     return r, types_n
 
 
-def get_dump(filename):
+def get_dump(filename, n_atoms=4000, return_all=False):
     data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=9, delimiter=" ",
                          names=["atom_nr", "type", "x", "y", "z", "fx", "fy", "fz", "pot_e"]).dropna()
     L = 31.82
@@ -47,28 +48,47 @@ def get_dump(filename):
     x = x - np.round(x / L) * L
     y = y - np.round(y / L) * L
     z = z - np.round(z / L) * L
-    print(x.shape)
 
     types = np.asarray(data["type"], dtype=int)
     atom_idx = np.asarray(data["atom_nr"], dtype=int)
 
-    n_frames = int(len(x) // 4000)
-    r = np.zeros((4000, n_frames, 3))
-    types_n = np.zeros((4000, n_frames), dtype=int)
-    atom_idx_n = np.zeros((4000, n_frames), dtype=int)
+    n_frames = int(len(x) // n_atoms)
+    r = np.zeros((n_atoms, n_frames, 3))
+    types_n = np.zeros((n_atoms, n_frames), dtype=int)
+    atom_idx_n = np.zeros((n_atoms, n_frames), dtype=int)
+
+    if return_all:
+        fx = np.asarray(data["fx"])
+        fy = np.asarray(data["fy"])
+        fz = np.asarray(data["fz"])
+        pot_e = np.asarray(data["pot_e"])
+
+        f = np.zeros((n_atoms, n_frames, 3))
+        e = np.zeros((n_atoms, n_frames))
 
     for i in range(n_frames):
-        r[:, i, 0] = x[i * 4000:4000 + i * 4000]
-        r[:, i, 1] = y[i * 4000:4000 + i * 4000]
-        r[:, i, 2] = z[i * 4000:4000 + i * 4000]
-        types_n[:, i] = types[i * 4000:4000 + i * 4000]
-        atom_idx_n[:, i] = atom_idx[i * 4000:4000 + i * 4000]
+        r[:, i, 0] = x[i * n_atoms:n_atoms + i * n_atoms]
+        r[:, i, 1] = y[i * n_atoms:n_atoms + i * n_atoms]
+        r[:, i, 2] = z[i * n_atoms:n_atoms + i * n_atoms]
+        types_n[:, i] = types[i * n_atoms:n_atoms + i * n_atoms]
+        atom_idx_n[:, i] = atom_idx[i * n_atoms:n_atoms + i * n_atoms]
+
+        if return_all:
+            f[:, i, 0] = fx[i * n_atoms:n_atoms + i * n_atoms]
+            f[:, i, 1] = fy[i * n_atoms:n_atoms + i * n_atoms]
+            f[:, i, 2] = fz[i * n_atoms:n_atoms + i * n_atoms]
+            e[:, i] = pot_e[i * n_atoms:n_atoms + i * n_atoms]
 
     sort_idx = np.argsort(atom_idx_n, axis=0)
     for i in range(r.shape[-1]):
         r[:, :, i] = np.take_along_axis(r[:, :, i], sort_idx, axis=0)
+        if return_all:
+            f[:, :, i] = np.take_along_axis(f[:, :, i], sort_idx, axis=0)
 
     types_n = np.take_along_axis(types_n, sort_idx, axis=0)
+    if return_all:
+        e = np.take_along_axis(e, sort_idx, axis=0)
+        return r, types_n, f, e
 
     return r, types_n
 
@@ -435,6 +455,46 @@ def calc_angle(index_matrix, dr):
     return angle
 
 
+def calc_rdf(dr, name_array, bz=1, max_r=7):
+    boxX = boxY = boxZ = 31.82
+    n = int((max_r+bz)//bz)+1
+    alal = np.zeros(n)
+    alo = np.zeros(n)
+    oo = np.zeros(n)
+    r_ticks = np.linspace(0, max_r, n)
+    nrAl = np.count_nonzero(name_array==1)
+    nrO = np.count_nonzero(name_array==2)
+
+    adhoc = np.array([boxX * boxY * boxZ / (nrAl * (nrAl - 1)) / bz,
+                      boxX * boxY * boxZ / (nrAl * nrO - (nrAl + nrO)) / bz,
+                      boxX * boxY * boxZ / (nrO * (nrO - 1)) / bz])
+
+    for i in range(dr.shape[0]):
+        typei = name_array[i]
+
+        for j in range(dr.shape[0]):
+            rij = np.sqrt(np.sum((dr[i] - dr[j])**2))  # distance between atom i and j
+            if i == j or rij>max_r:
+                continue  # skip this iteration
+            typej = name_array[j]
+            idx = int(np.rint(rij/bz))
+
+            if typei != typej: # ALO bond
+                alo[idx] += 1
+            elif typei == 1 and typej == 1:  # AlAl
+                alal[idx] += 1
+            elif typei == 2 and typej == 2:  # OO
+                oo[idx] += 1
+
+    i = np.arange(1, len(alal) + 1, 1)
+    rbz = bz * i
+
+    alal = alal*adhoc[0] / (4 * np.pi * rbz ** 2)
+    alo = alo*adhoc[1] / (4 * np.pi * rbz ** 2)
+    oo = oo*adhoc[2] / (4 * np.pi * rbz ** 2)
+
+    return alal, alo, oo, r_ticks
+
 def get_angles(dr, name_array, cutoffs, bz=1):
     n = int(180//bz)+1
     alalal = np.zeros(n)
@@ -484,6 +544,94 @@ def get_angles(dr, name_array, cutoffs, bz=1):
 
     return alalal, aloal, oalo, ooo, angle_ticks
 
+def test_rdf():
+    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump")
+    #dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dplowT.dump")
+
+    frame = -1
+
+    alal, alo, oo, r_ticks = calc_rdf(dr[:, frame], name_array[:, frame], bz=0.05)
+
+    plt.figure()
+    plt.title("bond distribution- starting structure, AlAl")
+    plt.plot(r_ticks, alal, "-")
+    plt.xlabel("r [Å]")
+    plt.show()
+
+    plt.figure()
+    plt.title("bond distribtuion- starting structure, AlO")
+    plt.plot(r_ticks, alo, "-")
+    plt.xlabel("r [Å]")
+    plt.show()
+
+    plt.figure()
+    plt.title("bond distribution- starting structure, OO")
+    plt.plot(r_ticks, oo, "-")
+    plt.xlabel("r [Å]")
+    plt.show()
+
+#test_rdf()
+
+def test_start_struct():
+    dr, types_n = get_data("al2o3.top", skip_r=0)
+    frame = 0
+
+    alal, alo, oo, r_ticks = calc_rdf(dr[:, frame], types_n[:, frame], bz=0.05)
+
+    plt.figure()
+    plt.title("pdf- starting structure, AlAl")
+    plt.plot(r_ticks, alal, "-")
+    plt.xlabel("r [Å]")
+    plt.show()
+
+    plt.figure()
+    plt.title("pdf- starting structure, AlO")
+    plt.plot(r_ticks, alo, "-")
+    plt.xlabel("r [Å]")
+    plt.show()
+
+    plt.figure()
+    plt.title("pdf- starting structure, OO")
+    plt.plot(r_ticks, oo, "-")
+    plt.xlabel("r [Å]")
+    plt.show()
+
+#test_start_struct()
+
+def get_pot():
+    dr_dp, name_array_dp, f_dp, e_dp = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump", return_all=True) #deepmd sim (not finished)
+    dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump", return_all=True)
+
+    tot_pe_dp = np.sum(e_dp, axis=0)
+    tot_pe = cu.kcal_mol_to_eV(np.sum(e, axis=0))
+    print("Deepmd: ", tot_pe_dp[1])
+    print("Matsui: ", tot_pe[0])
+    t_matsui = np.arange(1, len(tot_pe)+1, 1)*1000 #femto
+    t_dp = np.arange(0, len(tot_pe_dp), 1)*1000
+
+    plt.figure()
+    plt.plot(t_matsui, tot_pe, "-o", label="Matsui")
+    plt.plot(t_dp, tot_pe_dp, "-o", label="DeepMD")
+    plt.xlabel("Time (fs)")
+    plt.ylabel("Potential energy [eV]")
+    plt.title("Total potential energy over time")
+    plt.legend()
+    plt.show()
+
+    error = (1-tot_pe_dp[1:]/tot_pe[:len(tot_pe_dp)-1])*100
+    plt.figure()
+    plt.title("Error over time")
+    plt.plot(t_dp[1:], error, "-o")
+    plt.ylabel("Deviation [%]")
+    plt.xlabel("Time [fs]")
+    plt.show()
+
+
+get_pot()
+
+
+
+
 def test_angles2():
     #f100 = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump"
     #f100 = "../lammps/output/a_al2o3_1.dump"
@@ -492,7 +640,7 @@ def test_angles2():
     #dr100, name_array100 = get_dump(f100)
     #dr10, name_array10 = get_dump(f10)
     #dr200, name_array200 = get_dump(f200)
-    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump")
+    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp2.dump")
     cutoffs = [4, 2.5, 3.4]
     frame = -1
 
@@ -546,6 +694,8 @@ def test_angles2():
     plt.savefig("ooo_adf.png")
     #plt.show()
     """
+
+test_rdf()
 #test_angles2()
 
 def test_angles():
@@ -574,10 +724,10 @@ def test_angles():
     plt.show()
 
 
-test_angles2()
+#test_angles2()
 
 
-def plot_cm():
+def plot_cm(x,y,z,types):
     cm_pos = cm_movement(x, y, z, types)
     cm_time = np.linspace(0, 410, len(cm_pos))
 

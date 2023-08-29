@@ -23,12 +23,19 @@ class ConvertUnits:
         num = num * self.kcal_kJ
         return num
 
+    def kJ_to_kcal(self, num):
+        num = num / self.kcal_kJ
+        return num
+
     def gram_cm3_to_u_Å3(self, num):
         num = num * 1000 * self.mol / (self.Å ^ 3)
         return num
 
 CU = ConvertUnits()
-print(CU.kcal_mol_to_eV(762301))
+print(CU.kcal_mol_to_eV(-741073.45))
+print(CU.kcal_mol_to_eV(23.069))
+print(CU.kcal_mol_to_eV(-762301.51))
+
 def test_CU():
     CU = ConvertUnits()
     print(CU.kcal_mol_to_eV(1))
@@ -218,25 +225,13 @@ def format_files(data_dir, dest_dir):
 
 #dest = "../deepmd_data/data_set"
 #data = "../deepmd_data/logs"
-format_logdir(data_dir=".\\log_test", dest_dir=".\\log_test")
+#format_logdir(data_dir=".\\log_test", dest_dir=".\\log_test")
 #format_logdir(data_dir=data, dest_dir=dest)
 
 
 # format_log(data_1, melt_frames=melt_100Kps, file_dest="energies_100Kps.npy")  # this looks good
 # format_log(data_2, melt_10Kps, file_dest="energies_10Kps.npy")
 # format_log(data_3, melt_200Kps, file_dest="energies_200Kps.npy")
-
-box = np.load("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\python\\deepmd_data\\a_al2o3_1\\set.000\\box.npy")
-print(box.shape)
-print(box[:5])
-box_start = 0
-box_end = 31.82
-
-box_line = np.array([box_end, box_start, box_start, box_start, box_end, box_start, box_start, box_start, box_end])
-boxt = np.stack([box_line]*4, axis=0)
-print(boxt.shape)
-print(boxt[:2])
-
 
 def get_adf(filename: str, cr: float):
     adf = pd.read_table(filename, on_bad_lines="skip", comment="#", skiprows=4, delimiter=" ",
@@ -272,7 +267,7 @@ def plot_model(path):
     plt.show()
 
 path = "deepmd_data/lcurve.out"
-plot_model(path)
+#plot_model(path)
 # get_adf(filename="C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_1.adf", cr=100)
 # get_adf(filename="C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_23.adf", cr=10)
 # get_adf(filename="C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_45.adf", cr=200)
