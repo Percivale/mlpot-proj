@@ -5,7 +5,7 @@ import convert_units as cu
 
 def get_data(filename: str, skip_r=9):
     data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=skip_r, delimiter=" ",
-                         names=["atom_nr", "type", "q", "x", "y", "z"]).dropna()  # .reset_index(drop=True)
+                         names=["atom_nr", "type", "x", "y", "z"]).dropna()  # .reset_index(drop=True)
     x = np.asarray(data["x"])
     y = np.asarray(data["y"])
     z = np.asarray(data["z"])
@@ -455,7 +455,7 @@ def calc_angle(index_matrix, dr):
     return angle
 
 
-def calc_rdf(dr, name_array, bz=1, max_r=7):
+def calc_rdf(dr, name_array, bz=0.05, max_r=7):
     boxX = boxY = boxZ = 31.82
     n = int((max_r+bz)//bz)+1
     alal = np.zeros(n)
@@ -544,28 +544,128 @@ def get_angles(dr, name_array, cutoffs, bz=1):
 
     return alalal, aloal, oalo, ooo, angle_ticks
 
+def calc_avg_adf(trajectory, filename):
+    dr, name_array = get_data(trajectory)
+    cutoffs = [4, 2.5, 3.4]
+    bz = 1
+    n = int(180//bz)+1
+    frames = dr.shape[1]
+
+    #initialize arrays
+    alalal_count = np.zeros(n)
+    aloal_count = np.zeros(n)
+    oalo_count = np.zeros(n)
+    ooo_count = np.zeros(n)
+    alalal = np.zeros(n)
+    aloal= np.zeros(n)
+    oalo = np.zeros(n)
+    ooo = np.zeros(n)
+
+    for frame in range(frames):
+        alalal_f, aloal_f, oalo_f, ooo_f, angle_ticks = get_angles(dr[:, frame], name_array[:, frame], cutoffs, bz=5)
+
+        alalal += alalal_f
+        aloal += aloal_f
+        oalo += oalo_f
+        ooo += ooo_f
+
+        alalal_count[alalal_f != 0] += 1
+        aloal_count[aloal_f != 0] += 1
+        oalo_count[oalo_f != 0] += 1
+        ooo_count[ooo_f != 0] += 1
+
+    alalal[alalal_count != 0] = alalal[alalal_count != 0]/alalal_count[alalal_count!=0] #Average rdf
+    aloal[aloal_count != 0] = aloal[aloal_count != 0]/aloal_count[aloal_count!=0] #Average rdf
+    oalo[oalo_count != 0] = oalo[oalo_count != 0]/oalo_count[oalo_count!=0] #Average rdf
+    ooo[ooo_count != 0] = ooo[ooo_count != 0]/ooo_count[ooo_count!=0] #Average rdf
+
+    np.savetxt(fname="alalal_avg_adf_" + filename, X=np.concatenate((angle_ticks, alalal), axis=0))
+    np.savetxt(fname="aloal_avg_adf_" + filename, X=np.concatenate((angle_ticks, aloal)), axis=0)
+    np.savetxt(fname="oalo_avg_adf_" + filename, X=np.concatenate((angle_ticks, oalo)), axis=0)
+    np.savetxt(fname="ooo_avg_adf_" + filename, X=np.concatenate((angle_ticks, ooo)), axis=0)
+
+
+
+
+
+def calc_avg_rdf(filename, file_dest):
+    max_r = 7
+    bz = 0.05
+
+    dr, name_array = get_data(filename)
+    n_frames = dr.shape[1]
+    n = int((max_r + bz) // bz) + 1
+
+    #Initialize arrays
+    alal_count = np.zeros(n)
+    alo_count = np.zeros(n)
+    oo_count = np.zeros(n)
+    alal = np.zeros(n)
+    alo = np.zeros(n)
+    oo = np.zeros(n)
+
+    for frame in range(n_frames):
+        alal_f, alo_f, oo_f, r_ticks = calc_rdf(dr[:, frame], name_array[:, frame], bz=bz, max_r=max_r)
+
+        alal += alal_f
+        alo += alo_f
+        oo += oo_f
+
+        alal_count[alal_f != 0] += 1
+        alo_count[alo_f != 0] += 1
+        oo_count[oo_f != 0] += 1
+
+    alal[alal_count != 0] = alal[alal_count != 0]/alal_count[alal_count!=0] #Average rdf
+    alo[alo_count != 0] = alo[alo_count != 0]/alo_count[alo_count!=0] #Average rdf
+    oo[oo_count != 0] = oo[oo_count != 0]/oo_count[oo_count!=0] #Average rdf
+
+    np.savetxt(fname="alal_avg_rdf_"+file_dest, X=np.concatenate((r_ticks, alal), axis=0))
+    np.savetxt(fname="alo_avg_rdf_"+file_dest, X=np.concatenate((r_ticks, alo), axis=0))
+    np.savetxt(fname="oo_avg_rdf_"+file_dest, X=np.concatenate((r_ticks, oo), axis=0))
+
+
+print("Calculating high T Matsui rdf...")
+calc_avg_rdf(filename="../lammps/output/a_al2o3_1_highT.lammpstrj", file_dest="highT_Matsui.txt")
+print("Calculating low T Matsui rdf...")
+calc_avg_rdf(filename="../lammps/output/a_al2o3_1_lowT.lammpstrj", file_dest="lowT_Matsui.txt")
+print("Calculating high T DeepMD rdf...")
+calc_avg_rdf(filename="../lammps/output/nn_pot/a_al2o3_highT.lammpstrj", file_dest="highT_DeepMD.txt")
+print("Calculating low T DeepMD rdf...")
+calc_avg_rdf(filename="../lammps/output/nn_pot/a_al2o3_lowT.lammpstrj", file_dest="lowT_DeepMD.txt")
+
+print("Calculating high T Matsui adf...")
+calc_avg_adf(trajectory="../lammps/output/a_al2o3_1_highT.lammpstrj", filename="highT_Matsui.txt")
+print("Calculating low T Matsui adf...")
+calc_avg_adf(trajectory="../lammps/output/a_al2o3_1_lowT.lammpstrj", filename="lowT_Matsui.txt")
+print("Calculating high T DeepMD adf...")
+calc_avg_adf(trajectory="../lammps/output/nn_pot/a_al2o3_highT.lammpstrj", filename="highT_DeepMD.txt")
+print("Calculating low T DeepMD adf...")
+calc_avg_adf(trajectory="../lammps/output/nn_pot/a_al2o3_lowT.lammpstrj", filename="lowT_DeepMD.txt")
+
+
+
 def test_rdf():
-    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump")
+    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump")
     #dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dplowT.dump")
 
     frame = -1
 
-    alal, alo, oo, r_ticks = calc_rdf(dr[:, frame], name_array[:, frame], bz=0.05)
+    alal, alo, oo, r_ticks = calc_rdf(dr[:, frame], name_array[:, frame], bz=0.05, max_r=11)
 
     plt.figure()
-    plt.title("bond distribution- starting structure, AlAl")
+    plt.title("rdf, last frame, AlAl")
     plt.plot(r_ticks, alal, "-")
     plt.xlabel("r [Å]")
     plt.show()
 
     plt.figure()
-    plt.title("bond distribtuion- starting structure, AlO")
+    plt.title("rdf, last frame,  AlO")
     plt.plot(r_ticks, alo, "-")
     plt.xlabel("r [Å]")
     plt.show()
 
     plt.figure()
-    plt.title("bond distribution- starting structure, OO")
+    plt.title("rdf, last frame, OO")
     plt.plot(r_ticks, oo, "-")
     plt.xlabel("r [Å]")
     plt.show()
@@ -600,13 +700,15 @@ def test_start_struct():
 
 def get_pot():
     dr_dp, name_array_dp, f_dp, e_dp = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump", return_all=True) #deepmd sim (not finished)
-    dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump", return_all=True)
+    #dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump", return_all=True)
+    dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump", return_all=True) #deepmd sim (not finished)
+
 
     tot_pe_dp = np.sum(e_dp, axis=0)
     tot_pe = cu.kcal_mol_to_eV(np.sum(e, axis=0))
     print("Deepmd: ", tot_pe_dp[1])
-    print("Matsui: ", tot_pe[0])
-    t_matsui = np.arange(1, len(tot_pe)+1, 1)*1000 #femto
+    print("Matsui: ", tot_pe[1])
+    t_matsui = np.arange(0, len(tot_pe), 1)*1000 #femto
     t_dp = np.arange(0, len(tot_pe_dp), 1)*1000
 
     plt.figure()
@@ -618,16 +720,16 @@ def get_pot():
     plt.legend()
     plt.show()
 
-    error = (1-tot_pe_dp[1:]/tot_pe[:len(tot_pe_dp)-1])*100
+    error = (1-tot_pe_dp/tot_pe[:len(tot_pe_dp)])*100
     plt.figure()
     plt.title("Error over time")
-    plt.plot(t_dp[1:], error, "-o")
+    plt.plot(t_dp, error, "-o")
     plt.ylabel("Deviation [%]")
     plt.xlabel("Time [fs]")
     plt.show()
 
 
-get_pot()
+#get_pot()
 
 
 
@@ -640,7 +742,7 @@ def test_angles2():
     #dr100, name_array100 = get_dump(f100)
     #dr10, name_array10 = get_dump(f10)
     #dr200, name_array200 = get_dump(f200)
-    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp2.dump")
+    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump")
     cutoffs = [4, 2.5, 3.4]
     frame = -1
 
@@ -695,7 +797,7 @@ def test_angles2():
     #plt.show()
     """
 
-test_rdf()
+
 #test_angles2()
 
 def test_angles():
