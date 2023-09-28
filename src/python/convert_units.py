@@ -22,7 +22,7 @@ def kJ_to_kcal(num):
     return num
 
 def gram_cm3_to_u_Å3(num):
-    num = num * 1000 * mol / (Å ^ 3)
+    num = num * 0.602214076
     return num
 
 def tests():

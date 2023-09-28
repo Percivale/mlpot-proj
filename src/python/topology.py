@@ -116,17 +116,30 @@ fname = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dum
 r, types_n = structure_analysis.get_dump(fname)
 print(types_n.shape)
 
-def from_xyz_make_top(r, types_n, q1, q2):
+def from_xyz_make_top(r, types_n, q1, q2, fname, frame=-1):
     n_atoms = types_n.shape[0]
     idx = np.arange(1, n_atoms + 1, 1, dtype=int)
 
     q = np.full_like(types_n, fill_value=q1, dtype=float)
     q[types_n == 2] = q2
 
-    with open('al2o3.top', 'w') as f:
+    with open(fname, 'w') as f:
         for i in range(n_atoms):
-            f.write(str(idx[i]) + str(" ") + str(types_n[i, -1]) + str(" ") + str(q[i, -1]) + str(" ") + str(r[i, -1, 0]) + str(" ") + str(r[i, -1, 1]) + str(" ") + str(r[i, -1, 2]) + "\n")
+            f.write(str(idx[i]) + str(" ") + str(types_n[i, frame]) + str(" ") + str(q[i, frame]) + str(" ") + str(r[i, frame, 0]) + str(" ") + str(r[i, frame, 1]) + str(" ") + str(r[i, frame, 2]) + "\n")
 
 q1 = 1.4175
 q2 = -0.9450
 #from_xyz_make_top(r, types_n, q1, q2)
+
+def create_frame_top():
+    f = "a_al2o3_frame_"
+
+    dump_file = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump"
+    r, types_n = structure_analysis.get_dump(dump_file)
+
+    for i in range(r.shape[1]):
+        print("frame: ", i)
+        filename = f+str(i)+".top"
+        print("saving to file: " + filename)
+
+        from_xyz_make_top(r, types_n, q1, q2, filename, frame=i)

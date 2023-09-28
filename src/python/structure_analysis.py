@@ -2,19 +2,25 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import convert_units as cu
+import os
 
-def get_data(filename: str, skip_r=9):
+def get_data(filename: str, skip_r=9, L = 31.82):
     data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=skip_r, delimiter=" ",
                          names=["atom_nr", "type", "x", "y", "z"]).dropna()  # .reset_index(drop=True)
-    x = np.asarray(data["x"])
-    y = np.asarray(data["y"])
-    z = np.asarray(data["z"])
+
+
+    # Scale coordinates
+    x = np.asarray(data["x"])*L
+    y = np.asarray(data["y"])*L
+    z = np.asarray(data["z"])*L
+
     types = np.asarray(data["type"], dtype=int)
     atom_idx = np.asarray(data["atom_nr"], dtype=int)
 
     n_frames = int(len(x) // 4000)
     if n_frames == 0:
-        n_frames=1
+        n_frames = 1
+
     r = np.zeros((4000, n_frames, 3))
     types_n = np.zeros((4000, n_frames), dtype=int)
     atom_idx_n = np.zeros((4000, n_frames), dtype=int)
@@ -34,7 +40,6 @@ def get_data(filename: str, skip_r=9):
 
     return r, types_n
 
-
 def get_dump(filename, n_atoms=4000, return_all=False):
     data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=9, delimiter=" ",
                          names=["atom_nr", "type", "x", "y", "z", "fx", "fy", "fz", "pot_e"]).dropna()
@@ -53,6 +58,9 @@ def get_dump(filename, n_atoms=4000, return_all=False):
     atom_idx = np.asarray(data["atom_nr"], dtype=int)
 
     n_frames = int(len(x) // n_atoms)
+    if n_frames == 0:
+        n_frames = 1
+
     r = np.zeros((n_atoms, n_frames, 3))
     types_n = np.zeros((n_atoms, n_frames), dtype=int)
     atom_idx_n = np.zeros((n_atoms, n_frames), dtype=int)
@@ -92,13 +100,73 @@ def get_dump(filename, n_atoms=4000, return_all=False):
 
     return r, types_n
 
+def compare_e(matsui, deepmd_dir):
+    rm, types_nm, fm, em = get_dump(filename=matsui, return_all=True)
+    fdp = np.zeros_like(fm)
+    edp = np.zeros_like(em)
+    frame = 0
 
-def cm_movement(x, y, z, types):
+    for subdir, dirs, files in os.walk(deepmd_dir):
+        for file in files:
+            filepath = subdir + os.sep + file
+            print("Accessing file.... ", file)
+            frame = int(str(file)[14:-5])
+            print(frame)
+            r, types_m, f, e = get_dump(filename=filepath, return_all=True)
+            fdp[:, frame] = f[:, 0]
+            edp[:, frame] = e[:, 0]
+            frame += 1
+
+    plt.figure()
+    plt.title("Energy comparison", size = 16)
+    plt.plot(cu.kcal_mol_to_eV(np.sum(em, axis=0))[1:], "-o", color="r", linewidth=2, label="Matsui")
+    plt.plot(np.sum(edp, axis=0)[1:], "-o", color="k", linewidth=2, label="DeepMD")
+    plt.xlabel("Frame", size=14)
+    plt.ylabel("Potential energy [eV]", size=14)
+    plt.legend(fontsize=14)
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.show()
+
+    plt.figure()
+    plt.title("Energy comparison with energy shift of -689.997eV", size = 16)
+    plt.plot(cu.kcal_mol_to_eV(np.sum(em, axis=0))[1:], "-o", color="r", linewidth=2, label="Matsui")
+    plt.plot(np.sum(edp, axis=0)[1:] -689.99731164663, "-o", color="k", linewidth=2, label="DeepMD")
+    plt.xlabel("Frame", size=14)
+    plt.ylabel("Potential energy [eV]", size=14)
+    plt.legend(fontsize=14)
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.show()
+
+    print("energy rmsd: ", np.sqrt(np.mean((cu.kcal_mol_to_eV(np.sum(em, axis=0))[1:] - np.sum(edp, axis=0)[1:])**2))/4000)
+    print("energy rmsd, shifted: ", np.sqrt(np.mean((cu.kcal_mol_to_eV(np.sum(em, axis=0))[1:] - (np.sum(edp, axis=0)[1:] - 689.99731164663))**2))/4000)
+
+    print("force rmsd: ",  np.sqrt(np.mean((np.sum(cu.kcal_mol_to_eV(np.sqrt(np.sum(fm**2, axis=-1))), axis=0)[1:] - np.sum(np.sqrt(np.sum(fdp**2, axis=-1)), axis=0)[1:])**2))/4000)
+
+    plt.figure()
+    plt.title("Force comparison", size = 16)
+    plt.plot(np.sum(cu.kcal_mol_to_eV(np.sqrt(np.sum(fm**2, axis=-1))), axis=0)[1:], "-o", color="r", linewidth=2, label="Matsui")
+    plt.plot(np.sum(np.sqrt(np.sum(fdp**2, axis=-1)), axis=0)[1:], "-o", color="k", linewidth=2, label="DeepMD")
+    plt.xlabel("Frame", size=14)
+    plt.ylabel("Force [eV/Å]", size=14)
+    plt.legend(fontsize=14)
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.show()
+
+compare_e(matsui = "..\\a_al2o3_1_pe_comparison.dump", deepmd_dir=".\\comparison_frames")
+
+
+
+
+def cm_movement(x, y, z, types, L=31.82):
     m1 = 26.982
     m2 = 15.999
 
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    r[r > 1] -= 1
+    #r[r > 1] -= 1
+    r = r - np.round(r/L)*L
 
     masses = np.full_like(types, fill_value=m2)
     masses[types == 1] = m1
@@ -107,7 +175,7 @@ def cm_movement(x, y, z, types):
     return cm_pos
 
 
-def compute_msd(r):
+def compute_msd(r, L = 31.82):
     """
     Computes msd
     :param r: scaled r coordinates, 3d array: (n_atoms, n_frames, n_coordinates = 3).
@@ -115,59 +183,78 @@ def compute_msd(r):
             1d array.
     """
     res = np.zeros((r.shape[1] - 1, 2))
-    L = 1
+
     frames = r
 
     for dt in range(1, frames.shape[1]):  # go through all time intervalls
         for t0 in range(frames.shape[1] - dt):
             dr = frames[:, t0 + dt] - frames[:, t0]
-            dr = dr - np.round(dr / L) * L  # pbc
-            dr2 = np.sum(dr ** 2, axis=0)
-            res[dt - 1, 1] += np.mean(dr2)
 
+            dr = dr - np.round(dr / L) * L  # pbc
+            dr2 = np.sum(dr ** 2, axis=1)
+
+            res[dt - 1, 1] += np.mean(dr2)
+            print(np.mean(dr2))
+        print(dt)
+        print((frames.shape[1] - dt))
+        print(res[dt-1, 1])
+        print("\n")
         res[dt - 1, 0] = dt
-        res[dt - 1, 1] = res[dt - 1, 1] / (frames.shape[1] - dt)
+        res[dt - 1, 1] = res[dt - 1, 1] / ((frames.shape[1] - dt)) #1000 frames per interval
     return res
 
 
 # r, types = get_data("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_4000_1_dump.lammpstrj")
 #r, types = get_data("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_output\\a_al2o3_1.lammpstrj")
 
-
-def test_msd(r):
+def test_msd(r1, r2):
     dt = 100  # fs
     # frames_5000T = np.arange(0, 100, 1, dtype=int)
     # frames_3000T = np.arange(300, 400, 1, dtype=int)
     # frames_300T = np.arange(4000, 4100, 1, dtype=int)
-    frames_300T = np.arange(250, 260, 1, dtype=int)
-    frames_melt = np.arange(0, 50, 1, dtype=int)
+    #frames_300T = np.arange(250, 260, 1, dtype=int)
+    #frames_melt = np.arange(0, 50, 1, dtype=int)
 
     # msd5000T = compute_msd(r[:, frames_5000T])
     # msd3000T = compute_msd(r[:, frames_3000T])
-    msd300T = compute_msd(r[:, frames_300T])
-    msdmelt = compute_msd(r[:, frames_melt])
+    msd300T = compute_msd(r1)
+    msdmelt = compute_msd(r2)
 
     plt.figure()
     plt.title("msd, 300K")
     plt.ylabel("msd")
     plt.xlabel("Time interval [ps]")
-    plt.plot(msd300T[:, 0] * 0.1, msd300T[:, 1], "-o")
+    plt.plot(msd300T[:, 0], msd300T[:, 1], "-o")
     plt.show()
 
     plt.figure()
-    plt.plot(msdmelt[:, 0] * 0.1, msdmelt[:, 1], "-o", label="2345K")
-    plt.plot(msd300T[:, 0] * 0.1, msd300T[:, 1], "-d", label="300K")
+    plt.title("msd, 300K")
+    plt.ylabel("msd")
+    plt.xlabel("Time interval [ps]")
+    plt.plot(msdmelt[:, 0], msdmelt[:, 1], "-o")
+    plt.show()
+
+    plt.figure(figsize=(6,8))
+    plt.plot(msdmelt[:, 0], msdmelt[:, 1], "-o", color="red", label="2345K")
+    plt.plot(msd300T[:, 0], msd300T[:, 1] - np.mean(msd300T[:,1]), "-d", color="black", label="300K")
     # plt.plot(msd5000T[:, 0]*0.1, msd5000T[:, 1], label="5000K")
     # plt.plot(msd3000T[:, 0]*0.1, msd3000T[:,1], "--", label="3000K")
     # plt.plot(msd300T[:, 0]*0.1, msd300T[:,1], ":", label="300K")
-    plt.title("msd at different temperatures")
-    plt.ylabel("msd")
-    plt.xlabel("Time interval [ps]")
-    plt.legend()
+    plt.title("MSD at different temperatures", size=18)
+    plt.ylabel("MSD [Å$^2$]", size=16)
+    plt.xlabel("Time interval [ps]", size=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.legend(fontsize=14)
+    #plt.ylim(0, 400)
     plt.show()
 
 
-# test_msd(r)
+dr_lowTMatsui, name_array_lowTMatsui = get_data("..\\a_al2o3_1_lowT.lammpstrj") # low T Matsui
+dr_highTMatsui, name_array_highTMatsui = get_data("..\\a_al2o3_1_highT.lammpstrj") # high T Matsui
+
+test_msd(dr_lowTMatsui[:, 10:], dr_highTMatsui[:, 10:])
+
 
 def make_bonds(r, name_array, box_size, cutoffs):
     """
@@ -456,14 +543,27 @@ def calc_angle(index_matrix, dr):
 
 
 def calc_rdf(dr, name_array, bz=0.05, max_r=7):
+    """
+    Calculates the radial distribution function of a snapshot
+    :param dr: numpy array. Coordinate matrix for atoms in system (n_atoms, 3)
+    :param name_array: numpy array. Contains atom types. (n_atoms, 1)
+    :param bz: Bin size of distribution.
+    :param max_r: Cut-off radius.
+    :return:
+        alal: rdf for Al-Al
+        alo: rdf for Al-O
+        oo: rdf for O-O
+        r_ticks: interatimic distances correspondint to the datapoints of the rdfs.
+    """
+
     boxX = boxY = boxZ = 31.82
-    n = int((max_r+bz)//bz)+1
+    n = int((max_r + bz) // bz) + 1
     alal = np.zeros(n)
     alo = np.zeros(n)
     oo = np.zeros(n)
     r_ticks = np.linspace(0, max_r, n)
-    nrAl = np.count_nonzero(name_array==1)
-    nrO = np.count_nonzero(name_array==2)
+    nrAl = np.count_nonzero(name_array == 1)
+    nrO = np.count_nonzero(name_array == 2)
 
     adhoc = np.array([boxX * boxY * boxZ / (nrAl * (nrAl - 1)) / bz,
                       boxX * boxY * boxZ / (nrAl * nrO - (nrAl + nrO)) / bz,
@@ -472,14 +572,14 @@ def calc_rdf(dr, name_array, bz=0.05, max_r=7):
     for i in range(dr.shape[0]):
         typei = name_array[i]
 
-        for j in range(dr.shape[0]):
-            rij = np.sqrt(np.sum((dr[i] - dr[j])**2))  # distance between atom i and j
-            if i == j or rij>max_r:
+        for j in range(dr.shape[0]):  # Could probably be from i+1 to dr.shape[0] ??
+            rij = np.sqrt(np.sum((dr[i] - dr[j]) ** 2))  # distance between atom i and j
+            if i == j or rij > max_r:
                 continue  # skip this iteration
             typej = name_array[j]
-            idx = int(np.rint(rij/bz))
+            idx = int(np.rint(rij / bz))
 
-            if typei != typej: # ALO bond
+            if typei != typej:  # ALO bond
                 alo[idx] += 1
             elif typei == 1 and typej == 1:  # AlAl
                 alal[idx] += 1
@@ -489,14 +589,25 @@ def calc_rdf(dr, name_array, bz=0.05, max_r=7):
     i = np.arange(1, len(alal) + 1, 1)
     rbz = bz * i
 
-    alal = alal*adhoc[0] / (4 * np.pi * rbz ** 2)
-    alo = alo*adhoc[1] / (4 * np.pi * rbz ** 2)
-    oo = oo*adhoc[2] / (4 * np.pi * rbz ** 2)
+    alal = alal * adhoc[0] / (4 * np.pi * rbz ** 2)
+    alo = alo * adhoc[1] / (4 * np.pi * rbz ** 2)
+    oo = oo * adhoc[2] / (4 * np.pi * rbz ** 2)
 
     return alal, alo, oo, r_ticks
 
+
 def get_angles(dr, name_array, cutoffs, bz=1):
-    n = int(180//bz)+1
+    """
+    Calculates angular distribution functions.
+
+    :param dr: Coordinate matrix. (n_atoms, 3)
+    :param name_array: type array. (n_atoms, 1)
+    :param cutoffs: Cut off radius for chemical bonds/ nearest neighbor.
+    :param bz: Bin size of distribution
+    :return: adfs for Al-Al-Al, Al-O-Al, O-Al-O and O-O-O as well as
+        the angle ticks.
+    """
+    n = int(180 // bz) + 1
     alalal = np.zeros(n)
     aloal = np.zeros(n)
     oalo = np.zeros(n)
@@ -507,7 +618,7 @@ def get_angles(dr, name_array, cutoffs, bz=1):
         typei = name_array[i]
 
         for j in range(dr.shape[0]):
-            rij = np.sqrt(np.sum((dr[i] - dr[j])**2))  # distance between atom i and j
+            rij = np.sqrt(np.sum((dr[i] - dr[j]) ** 2))  # distance between atom i and j
             if i == j:
                 continue  # skip this iteration
             typej = name_array[j]
@@ -517,18 +628,18 @@ def get_angles(dr, name_array, cutoffs, bz=1):
                     if i == k or j == k:
                         continue  # skip this iteration
 
-                    rkj = np.sqrt(np.sum((dr[j] - dr[k])**2))  # distance between atom j and k
+                    rkj = np.sqrt(np.sum((dr[j] - dr[k]) ** 2))  # distance between atom j and k
                     typek = name_array[k]
 
                     if rkj <= max(cutoffs):  # distance must be within cut off radius
-                        rik = np.sqrt(np.sum((dr[i] - dr[k])**2))
+                        rik = np.sqrt(np.sum((dr[i] - dr[k]) ** 2))
 
                         angle = np.rad2deg(np.arccos((rij ** 2 + rkj ** 2 - rik ** 2) / (2 * rij * rkj)))  # Cosine law
 
                         if np.isnan(angle):  # Skip if there is no angle
                             continue
 
-                        idx = int(np.rint(angle/bz))
+                        idx = int(np.rint(angle / bz))
 
                         if rij <= cutoffs[1] and rkj <= cutoffs[1]:
                             if typei == 1 and typej == 2 and typek == 1:  # AlOAl
@@ -544,25 +655,275 @@ def get_angles(dr, name_array, cutoffs, bz=1):
 
     return alalal, aloal, oalo, ooo, angle_ticks
 
-def calc_avg_adf(trajectory, filename):
+def get_coord_nr(dr, name_array, cutoffs):
+    """
+    Calculates coordination numbers of the different atom types
+    :param dr: Coordinate matrix. (n_atoms, 3)
+    :param name_array: Atom type array. (n_atoms, 1). Integer values
+    :param cutoffs: Cut-off for chemical bonds/nearest neighbor
+    :return: coordination numbers.
+        coord_nr_alo: (n_Al, 1)
+        coord_nr_oal: (n_O, 1)
+        coord_nr_alal: (n_Al, 1)
+        coord_nr_oo: (n_O, 1)
+    """
+
+    coord_nr_alo = []
+    coord_nr_alal = []
+    coord_nr_oo = []
+    coord_nr_oal = []
+
+    for i in range(dr.shape[0]):
+        typei = name_array[i]
+        n_alo = 0
+        n_oal = 0
+        n_alal = 0
+        n_oo = 0
+
+        for j in range(dr.shape[0]):
+            if j == i:
+                continue
+
+            rij = np.sqrt(np.sum((dr[i] - dr[j]) ** 2))  # distance between atom i and j
+            typej = name_array[j]
+
+            if typei == 1:
+                if typej ==2 and rij < cutoffs[1]:
+                    n_alo += 1
+                elif typej ==1 and rij <cutoffs[0]:
+                    n_alal += 1
+            else:
+                if typej == 2 and rij <cutoffs[2]:
+                    n_oo += 1
+                elif typej == 1 and rij <cutoffs[1]:
+                    n_oal +=1
+
+        if n_alo > 0:
+            coord_nr_alo.append(n_alo)
+        elif n_oal >0:
+            coord_nr_oal.append(n_oal)
+
+        if n_alal>0:
+            coord_nr_alal.append(n_alal)
+        elif n_oo>0:
+            coord_nr_oo.append(n_oo)
+
+    return coord_nr_alo, coord_nr_oal, coord_nr_alal, coord_nr_oo
+
+
+def compare_coord_nr():
+    #dr, name_array = get_data("..\\a_al2o3_1_highT.lammpstrj")
+    dr_lowTMatsui, name_array_lowTMatsui = get_data("..\\a_al2o3_1_lowT.lammpstrj") # low T Matsui
+    dr_highTMatsui, name_array_highTMatsui = get_data("..\\a_al2o3_1_highT.lammpstrj") # high T Matsui
+    dr_lowTDeepMD, name_array_lowTDeepMD = get_data("..\\a_al2o3_lowT.lammpstrj") # low T DeepMD
+    dr_highTDeepMD, name_array_highTDeepMD = get_data("..\\a_al2o3_highT.lammpstrj") # high T DeepMD
+
+
+    alo_lowTMatsui = np.array([])
+    oal_lowTMatsui = np.array([])
+    alal_lowTMatsui = np.array([])
+    oo_lowTMatsui = np.array([])
+
+    alo_highTMatsui = np.array([])
+    oal_highTMatsui = np.array([])
+    alal_highTMatsui = np.array([])
+    oo_highTMatsui = np.array([])
+
+    alo_lowTDeepMD = np.array([])
+    oal_lowTDeepMD = np.array([])
+    alal_lowTDeepMD = np.array([])
+    oo_lowTDeepMD = np.array([])
+
+    alo_highTDeepMD = np.array([])
+    oal_highTDeepMD = np.array([])
+    alal_highTDeepMD = np.array([])
+    oo_highTDeepMD = np.array([])
+
+    for frame in range(-1, -3, -1):
+        print("Frame: ", frame)
+        print("\nlowTMatsui\n")
+        coord_nr_alo, coord_nr_oal, coord_nr_alal, coord_nr_oo = get_coord_nr(
+            dr_lowTMatsui[:, frame], name_array_lowTMatsui[:, frame], cutoffs=[3.93, 2.44, 3.33])
+
+        alo_lowTMatsui = np.concatenate((alo_lowTMatsui, coord_nr_alo))
+        alal_lowTMatsui = np.concatenate((alal_lowTMatsui, coord_nr_alal))
+        oo_lowTMatsui = np.concatenate((oo_lowTMatsui, coord_nr_oo))
+        oal_lowTMatsui = np.concatenate((oal_lowTMatsui, coord_nr_oal))
+
+        ######################################
+        print("\nhighTMatsui\n")
+        coord_nr_alo, coord_nr_oal, coord_nr_alal, coord_nr_oo = get_coord_nr(
+            dr_highTMatsui[:, frame], name_array_highTMatsui[:, frame], cutoffs=[4.03, 2.54, 3.23])
+
+        alo_highTMatsui = np.concatenate((alo_highTMatsui, coord_nr_alo))
+        alal_highTMatsui = np.concatenate((alal_highTMatsui, coord_nr_alal))
+        oo_highTMatsui = np.concatenate((oo_highTMatsui, coord_nr_oo))
+        oal_highTMatsui = np.concatenate((oal_highTMatsui, coord_nr_oal))
+
+        ######################################
+        print("\nlowTDeepMD\n")
+        coord_nr_alo, coord_nr_oal, coord_nr_alal, coord_nr_oo = get_coord_nr(
+            dr_lowTDeepMD[:, frame], name_array_lowTDeepMD[:, frame], cutoffs=[3.88, 2.49, 3.28])
+
+        alo_lowTDeepMD = np.concatenate((alo_lowTDeepMD, coord_nr_alo))
+        alal_lowTDeepMD = np.concatenate((alal_lowTDeepMD, coord_nr_alal))
+        oo_lowTDeepMD = np.concatenate((oo_lowTDeepMD, coord_nr_oo))
+        oal_lowTDeepMD = np.concatenate((oal_lowTDeepMD, coord_nr_oal))
+
+        ######################################
+        print("\nhighTDeepMD\n")
+        coord_nr_alo, coord_nr_oal, coord_nr_alal, coord_nr_oo = get_coord_nr(
+            dr_highTDeepMD[:, frame], name_array_highTDeepMD[:, frame], cutoffs=[4.08, 2.64, 3.28])
+
+        alo_highTDeepMD = np.concatenate((alo_highTDeepMD, coord_nr_alo))
+        alal_highTDeepMD = np.concatenate((alal_highTDeepMD, coord_nr_alal))
+        oo_highTDeepMD = np.concatenate((oo_highTDeepMD, coord_nr_oo))
+        oal_highTDeepMD = np.concatenate((oal_highTDeepMD, coord_nr_oal))
+
+    #################### PLOTTING OF DATA BELOW ##################################
+
+    ################## T=300K ################################
+    plt.figure()
+    plt.title("Al-O Coordination numbers, T=300K", size=16)
+    plt.hist([alo_lowTMatsui, alo_lowTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(alo_lowTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.legend(fontsize=12)
+    plt.show()
+
+    plt.figure()
+    plt.title("O-Al Coordination numbers, T=300K", size=16)
+    plt.hist([oal_lowTMatsui, oal_lowTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(oal_lowTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.show()
+
+    plt.figure()
+    plt.title("Al-Al Coordination numbers, T=300K", size=16)
+    plt.hist([alal_lowTMatsui, alal_lowTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(alal_lowTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.show()
+
+    plt.figure()
+    plt.title("O-O Coordination numbers, T=300K", size=16)
+    plt.hist([oo_lowTMatsui, oo_lowTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(oo_lowTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.show()
+
+    ################## T=2345K ################################
+
+    plt.figure()
+    plt.title("Al-O Coordination numbers, T=2345K", size=16)
+    plt.hist([alo_highTMatsui, alo_highTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(alo_highTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.legend(fontsize=12)
+    plt.show()
+
+    plt.figure()
+    plt.title("O-Al Coordination numbers, T=2345K", size=16)
+    plt.hist([oal_highTMatsui, oal_highTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(oal_highTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.show()
+
+    plt.figure()
+    plt.title("Al-Al Coordination numbers, T=2345K", size=16)
+    plt.hist([alal_highTMatsui, alal_highTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(alal_highTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.show()
+
+    plt.figure()
+    plt.title("O-O Coordination numbers, T=2345K", size=16)
+    plt.hist([oo_highTMatsui, oo_highTDeepMD], alpha=0.5, color=["red", "darkblue"], edgecolor="k",
+             bins=list(np.unique(oo_highTDeepMD)), label=["Matsui", "DeepMD"])
+    plt.xticks(size=12)
+    plt.yticks(size=12)
+    plt.xlabel("Coordination nr", size=14)
+    plt.ylabel("Count", size=14)
+    plt.show()
+
+    ###################### PRINTING MEAN COORDINATION NUMBERS BELOW ######################################
+    ######################################
+    print("\nlowTMatsui")
+    print(np.mean(alo_lowTMatsui))
+    print(np.mean(alal_lowTMatsui))
+    print(np.mean(oo_lowTMatsui))
+    print(np.mean(oal_lowTMatsui))
+
+    ######################################
+    print("\nhighTMatsui")
+    print(np.mean(alo_highTMatsui))
+    print(np.mean(alal_highTMatsui))
+    print(np.mean(oo_highTMatsui))
+    print(np.mean(oal_highTMatsui))
+
+    ######################################
+    print("\nlowTDeepMD")
+    print(np.mean(alo_lowTDeepMD))
+    print(np.mean(alal_lowTDeepMD))
+    print(np.mean(oo_lowTDeepMD))
+    print(np.mean(oal_lowTDeepMD))
+
+    ######################################
+    print("\nhighTDeepMD")
+    print(np.mean(alo_highTDeepMD))
+    print(np.mean(alal_highTDeepMD))
+    print(np.mean(oo_highTDeepMD))
+    print(np.mean(oal_highTDeepMD))
+
+
+#compare_coord_nr()
+
+def calc_avg_adf(trajectory, filename, cutoffs=[4, 2.5, 3.4]):
+    """
+    Calculates average angular distribution functions for a lmmaps trajectory file.
+    :param trajectory: Path to lammps trajectory file
+    :param filename: Filepath to save adf data.
+    :param cutoffs: Cut-off radius for chemical bonds or nearest neighbors (in Å)
+    :return: Nothing
+    """
     dr, name_array = get_data(trajectory)
-    cutoffs = [4, 2.5, 3.4]
     bz = 1
-    n = int(180//bz)+1
+    n = int(180 // bz) + 1
     frames = dr.shape[1]
 
-    #initialize arrays
+    # initialize arrays
     alalal_count = np.zeros(n)
     aloal_count = np.zeros(n)
     oalo_count = np.zeros(n)
     ooo_count = np.zeros(n)
     alalal = np.zeros(n)
-    aloal= np.zeros(n)
+    aloal = np.zeros(n)
     oalo = np.zeros(n)
     ooo = np.zeros(n)
 
-    for frame in range(frames):
-        alalal_f, aloal_f, oalo_f, ooo_f, angle_ticks = get_angles(dr[:, frame], name_array[:, frame], cutoffs, bz=5)
+    for frame in range(1, frames):
+        print("Frame: ", frame)
+        alalal_f, aloal_f, oalo_f, ooo_f, angle_ticks = get_angles(dr[:, frame], name_array[:, frame], cutoffs, bz=bz)
 
         alalal += alalal_f
         aloal += aloal_f
@@ -574,29 +935,32 @@ def calc_avg_adf(trajectory, filename):
         oalo_count[oalo_f != 0] += 1
         ooo_count[ooo_f != 0] += 1
 
-    alalal[alalal_count != 0] = alalal[alalal_count != 0]/alalal_count[alalal_count!=0] #Average rdf
-    aloal[aloal_count != 0] = aloal[aloal_count != 0]/aloal_count[aloal_count!=0] #Average rdf
-    oalo[oalo_count != 0] = oalo[oalo_count != 0]/oalo_count[oalo_count!=0] #Average rdf
-    ooo[ooo_count != 0] = ooo[ooo_count != 0]/ooo_count[ooo_count!=0] #Average rdf
+    alalal[alalal_count != 0] = alalal[alalal_count != 0] / alalal_count[alalal_count != 0]  # Average adf
+    aloal[aloal_count != 0] = aloal[aloal_count != 0] / aloal_count[aloal_count != 0]  # Average adf
+    oalo[oalo_count != 0] = oalo[oalo_count != 0] / oalo_count[oalo_count != 0]  # Average adf
+    ooo[ooo_count != 0] = ooo[ooo_count != 0] / ooo_count[ooo_count != 0]  # Average adf
 
-    np.savetxt(fname="alalal_avg_adf_" + filename, X=np.concatenate((angle_ticks, alalal), axis=0))
-    np.savetxt(fname="aloal_avg_adf_" + filename, X=np.concatenate((angle_ticks, aloal)), axis=0)
-    np.savetxt(fname="oalo_avg_adf_" + filename, X=np.concatenate((angle_ticks, oalo)), axis=0)
-    np.savetxt(fname="ooo_avg_adf_" + filename, X=np.concatenate((angle_ticks, ooo)), axis=0)
-
-
-
+    np.savetxt(fname="alalal_avg_adf_" + filename, X=np.concatenate((angle_ticks, alalal), axis=1))
+    np.savetxt(fname="aloal_avg_adf_" + filename, X=np.concatenate((angle_ticks, aloal), axis=1))
+    np.savetxt(fname="oalo_avg_adf_" + filename, X=np.concatenate((angle_ticks, oalo), axis=1))
+    np.savetxt(fname="ooo_avg_adf_" + filename, X=np.concatenate((angle_ticks, ooo), axis=1))
 
 
 def calc_avg_rdf(filename, file_dest):
-    max_r = 7
+    """
+    Calculates average rdf over a lammps trajectory.
+    :param filename: path to lamps trajectory file.
+    :param file_dest: Destination for rdf data
+    :return: Nothing
+    """
+    max_r = 10
     bz = 0.05
 
     dr, name_array = get_data(filename)
     n_frames = dr.shape[1]
     n = int((max_r + bz) // bz) + 1
 
-    #Initialize arrays
+    # Initialize arrays
     alal_count = np.zeros(n)
     alo_count = np.zeros(n)
     oo_count = np.zeros(n)
@@ -604,7 +968,7 @@ def calc_avg_rdf(filename, file_dest):
     alo = np.zeros(n)
     oo = np.zeros(n)
 
-    for frame in range(n_frames):
+    for frame in range(1, n_frames):
         alal_f, alo_f, oo_f, r_ticks = calc_rdf(dr[:, frame], name_array[:, frame], bz=bz, max_r=max_r)
 
         alal += alal_f
@@ -615,40 +979,49 @@ def calc_avg_rdf(filename, file_dest):
         alo_count[alo_f != 0] += 1
         oo_count[oo_f != 0] += 1
 
-    alal[alal_count != 0] = alal[alal_count != 0]/alal_count[alal_count!=0] #Average rdf
-    alo[alo_count != 0] = alo[alo_count != 0]/alo_count[alo_count!=0] #Average rdf
-    oo[oo_count != 0] = oo[oo_count != 0]/oo_count[oo_count!=0] #Average rdf
+    alal[alal_count != 0] = alal[alal_count != 0] / alal_count[alal_count != 0]  # Average rdf
+    alo[alo_count != 0] = alo[alo_count != 0] / alo_count[alo_count != 0]  # Average rdf
+    oo[oo_count != 0] = oo[oo_count != 0] / oo_count[oo_count != 0]  # Average rdf
 
-    np.savetxt(fname="alal_avg_rdf_"+file_dest, X=np.concatenate((r_ticks, alal), axis=0))
-    np.savetxt(fname="alo_avg_rdf_"+file_dest, X=np.concatenate((r_ticks, alo), axis=0))
-    np.savetxt(fname="oo_avg_rdf_"+file_dest, X=np.concatenate((r_ticks, oo), axis=0))
+    np.savetxt(fname="alal_avg_rdf_" + file_dest, X=np.concatenate((r_ticks, alal), axis=1))
+    np.savetxt(fname="alo_avg_rdf_" + file_dest, X=np.concatenate((r_ticks, alo), axis=1))
+    np.savetxt(fname="oo_avg_rdf_" + file_dest, X=np.concatenate((r_ticks, oo), axis=1))
 
 
-print("Calculating high T Matsui rdf...")
-calc_avg_rdf(filename="../lammps/output/a_al2o3_1_highT.lammpstrj", file_dest="highT_Matsui.txt")
-print("Calculating low T Matsui rdf...")
-calc_avg_rdf(filename="../lammps/output/a_al2o3_1_lowT.lammpstrj", file_dest="lowT_Matsui.txt")
-print("Calculating high T DeepMD rdf...")
-calc_avg_rdf(filename="../lammps/output/nn_pot/a_al2o3_highT.lammpstrj", file_dest="highT_DeepMD.txt")
-print("Calculating low T DeepMD rdf...")
-calc_avg_rdf(filename="../lammps/output/nn_pot/a_al2o3_lowT.lammpstrj", file_dest="lowT_DeepMD.txt")
+# calc_avg_rdf(filename="..\\a_al2o3_1_highT.lammpstrj", file_dest="\\python\\highT_Matsui.txt")
 
-print("Calculating high T Matsui adf...")
-calc_avg_adf(trajectory="../lammps/output/a_al2o3_1_highT.lammpstrj", filename="highT_Matsui.txt")
-print("Calculating low T Matsui adf...")
-calc_avg_adf(trajectory="../lammps/output/a_al2o3_1_lowT.lammpstrj", filename="lowT_Matsui.txt")
-print("Calculating high T DeepMD adf...")
-calc_avg_adf(trajectory="../lammps/output/nn_pot/a_al2o3_highT.lammpstrj", filename="highT_DeepMD.txt")
-print("Calculating low T DeepMD adf...")
-calc_avg_adf(trajectory="../lammps/output/nn_pot/a_al2o3_lowT.lammpstrj", filename="lowT_DeepMD.txt")
 
+# print("Calculating high T Matsui rdf...")
+# calc_avg_rdf(filename="../lammps/output/a_al2o3_1_highT.lammpstrj", file_dest="highT_Matsui.txt")
+# print("Calculating low T Matsui rdf...")
+# calc_avg_rdf(filename="../lammps/output/a_al2o3_1_lowT.lammpstrj", file_dest="lowT_Matsui.txt")
+# print("Calculating high T DeepMD rdf...")
+# calc_avg_rdf(filename="../lammps/output/nn_pot/a_al2o3_highT.lammpstrj", file_dest="highT_DeepMD.txt")
+# print("Calculating low T DeepMD rdf...")
+# calc_avg_rdf(filename="../lammps/output/nn_pot/a_al2o3_lowT.lammpstrj", file_dest="lowT_DeepMD.txt")
+
+#print("Calculating high T Matsui adf...")
+#calc_avg_adf(trajectory="../lammps/output/a_al2o3_1_highT.lammpstrj", filename="highT_Matsui.txt",
+#             cutoffs=[4.03, 2.54, 3.23])
+
+#print("Calculating low T Matsui adf...")
+#calc_avg_adf(trajectory="../lammps/output/a_al2o3_1_lowT.lammpstrj", filename="lowT_Matsui.txt",
+#             cutoffs=[3.93, 2.44, 3.33])
+
+#print("Calculating high T DeepMD adf...")
+#calc_avg_adf(trajectory="../lammps/output/nn_pot/a_al2o3_highT.lammpstrj", filename="highT_DeepMD.txt",
+#             cutoffs=[4.08, 2.64, 3.28])
+
+#print("Calculating low T DeepMD adf...")
+#calc_avg_adf(trajectory="../lammps/output/nn_pot/a_al2o3_lowT.lammpstrj", filename="lowT_DeepMD.txt",
+#             cutoffs=[3.88, 2.49, 3.28])
 
 
 def test_rdf():
-    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump")
-    #dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dplowT.dump")
+    # dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump")
+    dr, name_array = get_data("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_lowT.lammpstrj")
 
-    frame = -1
+    frame = 1
 
     alal, alo, oo, r_ticks = calc_rdf(dr[:, frame], name_array[:, frame], bz=0.05, max_r=11)
 
@@ -670,7 +1043,6 @@ def test_rdf():
     plt.xlabel("r [Å]")
     plt.show()
 
-#test_rdf()
 
 def test_start_struct():
     dr, types_n = get_data("al2o3.top", skip_r=0)
@@ -696,20 +1068,22 @@ def test_start_struct():
     plt.xlabel("r [Å]")
     plt.show()
 
-#test_start_struct()
+
+# test_start_struct()
 
 def get_pot():
-    dr_dp, name_array_dp, f_dp, e_dp = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump", return_all=True) #deepmd sim (not finished)
-    #dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump", return_all=True)
-    dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump", return_all=True) #deepmd sim (not finished)
-
+    dr_dp, name_array_dp, f_dp, e_dp = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump",
+                                                return_all=True)  # deepmd sim (not finished)
+    # dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump", return_all=True)
+    dr, name_array, f, e = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_pe_comparison.dump",
+                                    return_all=True)  # deepmd sim (not finished)
 
     tot_pe_dp = np.sum(e_dp, axis=0)
     tot_pe = cu.kcal_mol_to_eV(np.sum(e, axis=0))
     print("Deepmd: ", tot_pe_dp[1])
     print("Matsui: ", tot_pe[1])
-    t_matsui = np.arange(0, len(tot_pe), 1)*1000 #femto
-    t_dp = np.arange(0, len(tot_pe_dp), 1)*1000
+    t_matsui = np.arange(0, len(tot_pe), 1) * 1000  # femto
+    t_dp = np.arange(0, len(tot_pe_dp), 1) * 1000
 
     plt.figure()
     plt.plot(t_matsui, tot_pe, "-o", label="Matsui")
@@ -720,7 +1094,7 @@ def get_pot():
     plt.legend()
     plt.show()
 
-    error = (1-tot_pe_dp/tot_pe[:len(tot_pe_dp)])*100
+    error = (1 - tot_pe_dp / tot_pe[:len(tot_pe_dp)]) * 100
     plt.figure()
     plt.title("Error over time")
     plt.plot(t_dp, error, "-o")
@@ -729,28 +1103,26 @@ def get_pot():
     plt.show()
 
 
-#get_pot()
-
-
+# get_pot()
 
 
 def test_angles2():
-    #f100 = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump"
-    #f100 = "../lammps/output/a_al2o3_1.dump"
-    #f10 = "../lammps/output/a_al2o3_23.dump"
-    #f200 = "../lammps/output/a_al2o3_55.dump"
-    #dr100, name_array100 = get_dump(f100)
-    #dr10, name_array10 = get_dump(f10)
-    #dr200, name_array200 = get_dump(f200)
-    dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump")
+    f100 = "C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\lammps_script\\a_al2o3_dump\\a_al2o3_1.dump"
+    # f100 = "../lammps/output/a_al2o3_1.dump"
+    # f10 = "../lammps/output/a_al2o3_23.dump"
+    # f200 = "../lammps/output/a_al2o3_55.dump"
+    dr100, name_array100 = get_dump(f100)
+    # dr10, name_array10 = get_dump(f10)
+    # dr200, name_array200 = get_dump(f200)
+    # dr, name_array = get_dump("C:\\Users\\kajah\\git_repo\\mlpot-proj\\src\\a_al2o3_1_dp.dump")
     cutoffs = [4, 2.5, 3.4]
     frame = -1
 
-    #alalal100, aloal100, oalo100, ooo100, angle_ticks = get_angles(dr100[:, frame], name_array100[:, frame], cutoffs, bz=5)
-    #alalal10, aloal10, oalo10, ooo10, angle_ticks = get_angles(dr10[:, frame], name_array10[:, frame], cutoffs, bz=5)
-    #alalal200, aloal200, oalo200, ooo200, angle_ticks = get_angles(dr200[:, frame], name_array200[:, frame], cutoffs, bz=5)
-    alalal, aloal, oalo, ooo, angle_ticks = get_angles(dr[:, frame], name_array[:, frame], cutoffs, bz=5)
-
+    alalal100, aloal100, oalo100, ooo100, angle_ticks = get_angles(dr100[:, frame], name_array100[:, frame], cutoffs, bz=5)
+    # alalal10, aloal10, oalo10, ooo10, angle_ticks = get_angles(dr10[:, frame], name_array10[:, frame], cutoffs, bz=5)
+    # alalal200, aloal200, oalo200, ooo200, angle_ticks = get_angles(dr200[:, frame], name_array200[:, frame], cutoffs, bz=5)
+    # alalal, aloal, oalo, ooo, angle_ticks = get_angles(dr[:, frame], name_array[:, frame], cutoffs, bz=1)
+    """
     plt.figure()
     plt.title("adf, nn pot")
     plt.plot(angle_ticks, alalal, "-o", label="AlAlAl")
@@ -758,44 +1130,67 @@ def test_angles2():
     plt.plot(angle_ticks, ooo, "-s", label="OOO")
     plt.legend()
     plt.show()
-
     """
-    plt.figure()
-    plt.title("Al-Al-Al adf")
-    plt.plot(angle_ticks, alalal100, "-o", label="100K/ps")
-    plt.plot(angle_ticks, alalal10, "-d", label="10K/ps")
-    plt.plot(angle_ticks, alalal200, "-s", label="200K/ps")
-    plt.legend()
-    plt.savefig("alalal_adf.png")
-    #plt.show()
 
     plt.figure()
-    plt.title("Al-O-Al adf")
-    plt.plot(angle_ticks, aloal100, "-o", label="100K/ps")
-    plt.plot(angle_ticks, aloal10, "-d", label="10K/ps")
-    plt.plot(angle_ticks, aloal200, "-s", label="200K/ps")
-    plt.legend()
-    plt.savefig("aloal_adf.png")
-    #plt.show()
+    plt.title("Al-Al-Al adf", size=18)
+    plt.plot(angle_ticks, alalal100, "-o",  color="k", linewidth=2, label="100K/ps")
+    plt.xlabel("Degrees", size=16)
+    plt.ylabel("Count", size=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    #plt.plot(angle_ticks, alalal10, "-d", label="10K/ps")
+    #plt.plot(angle_ticks, alalal200, "-s", label="200K/ps")
+    #plt.legend()
+    plt.tight_layout()
+
+    #plt.savefig("alalal_adf.png", bbox_inches="tight")
+    plt.show()
 
     plt.figure()
-    plt.title("O-Al-O adf")
-    plt.plot(angle_ticks, oalo100, "-o", label="100K/ps")
-    plt.plot(angle_ticks, oalo10, "-d", label="10K/ps")
-    plt.plot(angle_ticks, oalo200, "-s", label="200K/ps")
-    plt.legend()
-    plt.savefig("oalo_adf.png")
-    #plt.show()
+    plt.title("Al-O-Al adf", size=18)
+    plt.plot(angle_ticks, aloal100, "-o", color="k", linewidth=2, label="100K/ps")
+    plt.xlabel("Degrees", size=16)
+    plt.ylabel("Count", size=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    #plt.plot(angle_ticks, aloal10, "-d", label="10K/ps")
+    #plt.plot(angle_ticks, aloal200, "-s", label="200K/ps")
+    #plt.legend()
+    plt.tight_layout()
+
+    #plt.savefig("aloal_adf.png", bbox_inches="tight")
+
+    plt.show()
 
     plt.figure()
-    plt.title("O-O-O adf")
-    plt.plot(angle_ticks, ooo100, "-o", label="100K/ps")
-    plt.plot(angle_ticks, ooo10, "-d", label="10K/ps")
-    plt.plot(angle_ticks, ooo200, "-s", label="200K/ps")
-    plt.legend()
-    plt.savefig("ooo_adf.png")
-    #plt.show()
-    """
+    plt.title("O-Al-O adf", size=18)
+    plt.plot(angle_ticks, oalo100, "-o", color="k", linewidth=2, label="100K/ps")
+    plt.xlabel("Degrees", size=16)
+    plt.ylabel("Count", size=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    #plt.plot(angle_ticks, oalo10, "-d", label="10K/ps")
+    #plt.plot(angle_ticks, oalo200, "-s", label="200K/ps")
+    #plt.legend()
+    plt.tight_layout()
+    #plt.savefig("oalo_adf.png", bbox_inches="tight")
+    plt.show()
+
+    plt.figure()
+    plt.title("O-O-O adf", size=18)
+    plt.plot(angle_ticks, ooo100, "-o", color="k", linewidth=2, label="100K/ps")
+    plt.xlabel("Degrees", size=16)
+    plt.ylabel("Count", size=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    #plt.plot(angle_ticks, ooo10, "-d", label="10K/ps")
+    #plt.plot(angle_ticks, ooo200, "-s", label="200K/ps")
+    #plt.legend()
+    plt.tight_layout()
+    #plt.savefig("ooo_adf.png", bbox_inches="tight")
+    plt.show()
+
 
 
 #test_angles2()
@@ -826,10 +1221,10 @@ def test_angles():
     plt.show()
 
 
-#test_angles2()
+# test_angles2()
 
 
-def plot_cm(x,y,z,types):
+def plot_cm(x, y, z, types):
     cm_pos = cm_movement(x, y, z, types)
     cm_time = np.linspace(0, 410, len(cm_pos))
 

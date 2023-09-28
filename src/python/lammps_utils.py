@@ -28,7 +28,7 @@ class ConvertUnits:
         return num
 
     def gram_cm3_to_u_Å3(self, num):
-        num = num * 1000 * self.mol / (self.Å ^ 3)
+        num = num * 0.602214076
         return num
 
 CU = ConvertUnits()
@@ -54,6 +54,18 @@ def test_CU():
 
 
 def read_dump(filename: str, n_atoms=4000):
+    """
+    Function to read lammps dump files
+    :param filename: path to dump file
+    :param n_atoms: number of atoms in system
+    :return: r, f, types_n[:, 0], pe. numpy arrays.
+        r: xyz coordinates (n_atoms, n_frames, 3).
+        f: force vector (n_atoms, n_frames, 3)
+        types_n[:,0]: atom type. (n_atoms, 1)
+        pe: potential energy of atoms. (n_atoms, 1)
+
+        All arrays are sorted such that the same index correspond to the same atom.
+    """
     data = pd.read_table(filename, on_bad_lines="skip", comment="I", skiprows=9, delimiter=" ",
                          names=["atom_nr", "type", "x", "y", "z", "fx", "fy", "fz", "pe"]).dropna()  # .reset_index(drop=True)
     x = np.asarray(data["x"])
@@ -111,6 +123,13 @@ def get_num(lis):
 
 
 def read_log(filename: str):
+    """
+    Function to read and save relevant data from the log file that contains the thermo output from
+    lammps.
+    :param filename: path to log file
+    :return: numpy array (n_frames, 6). Containing Step, Temp, E_pair, E_mol, Tot_Eng
+    and Press data from thermo output.
+    """
     file = open(filename, "r")
     cols = ["Step", "Temp", "E_pair", "E_mol", "TotEng", "Press"]
     file_list = file.readlines()
@@ -127,6 +146,13 @@ def read_log(filename: str):
 
 
 def format_logdir(data_dir, dest_dir):
+    """
+    Function for reading all log files in a directory, reformat to DeepMD
+    energy.npy files and save in a new directory.
+    :param data_dir: Directory for log files
+    :param dest_dir: Destination for reformatted files.
+    :return:
+    """
     liquid_frames = [7]
     solid_frames = [-2]
     melt_100Kps = list(np.arange(9, 29, 1, dtype=int))
@@ -165,6 +191,16 @@ def format_logdir(data_dir, dest_dir):
 
 
 def format_system(fname):
+    """
+    Function to reformat dump files to .raw files in the DeepMD
+    format.
+    :param fname: Path to dump file
+    :return: numpy arrays.
+        xyz_raw (n_frames, n_atoms*3).
+        forces_raw  (n_frames, n_atoms*3)
+        types_raw (n_frames, n_atoms)
+    """
+
     xyz, fxyz, types_n, pe = read_dump(fname)
     n_frames = xyz.shape[1]
     n_atoms = xyz.shape[0]
@@ -182,6 +218,13 @@ def format_system(fname):
 
 
 def format_files(data_dir, dest_dir):
+    """
+    Function for reformatting dump files in a directory to the DeepMD format.
+    :param data_dir: Directory of dump files
+    :param dest_dir: Destination directory for reformatted files
+    :return: None
+    """
+
     CU = ConvertUnits()
     box_start = 0
     box_end = 31.82
